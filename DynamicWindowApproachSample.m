@@ -144,7 +144,7 @@ evalDB = NormalizeEval(evalDB);
 % 最终评价函数的计算
 feval=[];
 for id=1:length(evalDB(:,1))
-    feval = [feval;evalParam(1:3)*evalDB(id,3:5)']; %根据评价函数参数 前三个参数分配的权重 计算每一组可用的路径参数信息的得分
+    feval = [feval;evalParam(1:3)*evalDB(id,3:5)']; % 根据评价函数参数 前三个参数分配的权重 计算每一组可用的路径参数信息的得分
 end
 evalDB = [evalDB feval]; % 最后一组
  
