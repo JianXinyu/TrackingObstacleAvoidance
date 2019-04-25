@@ -1,5 +1,5 @@
-from msgdev import MsgDevice,PeriodTimer
-from math import atan2, sqrt, pi
+from msgdev import MsgDevice, PeriodTimer
+from math import atan2
 from PID import PID
 
 class Interface(object):
@@ -131,8 +131,10 @@ def main():
 				left_motor, right_motor = average + output / 2, average - output / 2
 				left_motor = rpm_limit(left_motor)
 				right_motor = rpm_limit(right_motor)
-				print('posx:{},posy:{},yaw:{},left:{},right:{}'.format(self_state[POS_X], self_state[POS_Y],
-																		self_state[YAW], left_motor, right_motor))
+
+				print('self ship state: ', 'posx:{},posy:{},yaw:{},speed:{},left:{},right:{}'.format(self_state[POS_X],
+										self_state[POS_Y], self_state[YAW], self_state[SPD], left_motor, right_motor))
+				print('target ship state: ', 'posx:{}, posy: {}'.format(target_state[POS_X], target_state[POS_Y]))
 
 				interface001.Motor_send(left_motor, right_motor)
 	except (KeyboardInterrupt, Exception) as e:
