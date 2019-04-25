@@ -60,8 +60,8 @@ tic; % 估算程序运行时间开始
 % movcount=0;
 %% Main loop   循环运行 5000次 指导达到目的地 或者 5000次运行结束
 for i = 1:5000  
-    obstacle(5,:) = obstacle(5,:) - 0.01;%虚拟动态障碍物
-    obstacle(6,1) = obstacle(6,1) + 0.01;
+    obstacle(5,:) = obstacle(5,:) - 0.015;%虚拟动态障碍物
+  %  obstacle(6,1) = obstacle(6,1) + 0.01;
     % DWA参数输入 返回控制量 u = [v(m/s),w(rad/s)] 和 轨迹
     [u,traj] = DynamicWindowApproach(x,Kinematic,goal,evalParam,obstacle,obstacleR);
     x = f(x,u);% 机器人移动到下一个时刻的状态量 根据当前速度和角速度推导 下一刻的位置和角度
@@ -263,7 +263,7 @@ MD_ACC   = 3;%
 MD_VW    = 4;% 
 
 global dt;
-% 车子速度的最大最小范围 依次为：最小速度 最大速度 最小角速度 最大角速度速度
+% 速度的最大最小范围 依次为：最小速度 最大速度 最小角速度 最大角速度速度
 Vs=[0 model(MD_MAX_V) -model(MD_MAX_W) model(MD_MAX_W)];
 
 % 障碍物约束
