@@ -109,20 +109,12 @@ class Obstacle:
         # self.yawspd = yawspd
 
 
+
+# def motion_model(state, speed, yaw_speed, dt)：
+
+
 # trimaran model
 def motion_model(state, left, right, dt):
-    # x = state['x']  # 北东系x坐标
-    # y = state['y']  # 北东系y坐标
-    # u0 = state['u'] # x方向速度(大地坐标系) [m/s]
-    # v0 = state['v'] # y方向速度(大地坐标系) [m/s]
-    # phi = state['phi']  # 艏向角，即船头与正北的夹角，范围为0~2PI， [rad]
-    # r0 = state['alpha'] # 艏向角速度 [rad/s]
-    # x = state.posx  # 北东系x坐标
-    # y = state.posy  # 北东系y坐标
-    # u0 = state.spd * math.cos(state.spddir) # x方向速度(大地坐标系) [m/s]
-    # v0 = state.spd * math.sin(state.spddir) # y方向速度(大地坐标系) [m/s]
-    # phi = state.yaw  # 艏向角，即船头与正北的夹角，范围为0~2PI， [rad]
-    # r0 = state.yawspd # 艏向角速度 [rad/s]
     x = state[POSE_X]  # 北东系x坐标
     y = state[POSE_Y]  # 北东系y坐标
     u0 = state[SPD] * math.cos(state[SPD_DIR]) # x方向速度(大地坐标系) [m/s]
@@ -156,6 +148,16 @@ def motion_model(state, left, right, dt):
 
     return [X, Y, spd, spddir, phi1, r]
 
+    # X = state[POSE_X]  # 北东系x坐标
+    # Y = state[POSE_Y]  # 北东系y坐标
+    # state[YAW] += yaw_speed * dt
+    # X += speed * math.cos(state[YAW]) * dt
+    # Y += speed * math.sin(state[YAW]) * dt
+    # state[SPD] = speed
+    # state[YAW_SPEED] = yaw_speed
+
+
+    # return [X, Y, state[SPD], state[SPD_DIR], state[YAW],state[YAW_SPEED]]
 
 def calc_dynamic_window(currentstate, kineticconfig): #, min_dist):
     # 速度的最大最小范围 依次为：最小速度 最大速度 最小角速度 最大角加速度
@@ -187,12 +189,12 @@ def calc_braking_distance():
 # retval:
 
 # @pysnooper.snoop()
-def calc_trajectory(state, left, right, config):
+def calc_trajectory(state, speed, yaw_speed, config):
 
     traj = np.array(state)
     time = 0
     while time <= config.predict_time:
-        state_tmp = motion_model(state, left, right, config.dt)
+        state_tmp = motion_model(state, speed, yaw_speed, config.dt)
         traj = np.vstack((traj, state_tmp))  # 记录当前及所有预测的点
         time += config.dt
 
@@ -243,7 +245,7 @@ def calc_speed_cost(traj, config):
     return cost  # config.max_speed - traj[-1, SPD]  # cost
 
 
-def eval_func(state, dw, config, goal, obstacles, left, right):
+def eval_func(state, dw, config, goal, obstacles, speed, yaw_speed):
     # xinit = state[:]
     min_cost = 10000.0
     # min_u = [0.0, 0.0]
@@ -256,7 +258,7 @@ def eval_func(state, dw, config, goal, obstacles, left, right):
         for y in np.arange(dw[2], dw[3], config.yawrate_reso):
             state[SPD] = v
             state[YAW] = y
-            traj = calc_trajectory(state, left, right, config)
+            traj = calc_trajectory(state, speed, yaw_speed, config)
 
             # calc cost
             to_goal_cost = calc_to_goal_eval(traj, goal, config)  # 前项预测终点的航向得分, 偏差越小分数越高
@@ -279,12 +281,12 @@ def eval_func(state, dw, config, goal, obstacles, left, right):
     return speed, yaw_speed, best_traj
 
 
-def dwa_control(state, config, goal, obstacles, left, right):
+def dwa_control(state, config, goal, obstacles, speed, yaw_speed):
     # Dynamic Window control
    # min_dist = calc_obstacle_eval(traj, obstacles, config)
     dw = calc_dynamic_window(state, config) #, min_dist)
 
-    speed, yaw_speed, traj = eval_func(state, dw, config, goal, obstacles, left, right)
+    speed, yaw_speed, traj = eval_func(state, dw, config, goal, obstacles, speed, yaw_speed)
 
     return speed, yaw_speed, traj
 
@@ -298,9 +300,11 @@ def plot_arrow(x, y, yaw, length=0.5, width=0.1):  # pragma: no cover
 def main():
     # Initialize
     config = Config()
-    left = 1000
-    right = 1000
-    state = motion_model(vehicle_state, left, right, config.dt)
+    # left = 1000
+    # right = 1000
+    speed = 0.0
+    yaw_speed = 0.0
+    state = motion_model(vehicle_state, speed, yaw_speed, config.dt)
     print(__file__ + " start!!")
     # initial state [x(m), y(m), yaw(rad), v(m/s), omega(rad/s)]
     # x = np.array([0.0, 0.0, math.pi / 8.0, 0.0, 0.0])
@@ -330,9 +334,9 @@ def main():
     traj = np.array(state)
 
     for i in range(1000):
-        state[SPD], state[YAW_SPEED], ltraj = dwa_control(state, config, goal, obstacles, left, right)
+        speed, yaw_speed, ltraj = dwa_control(state, config, goal, obstacles, speed, yaw_speed)
 
-        state = motion_model(state, left, right, config.dt)
+        state = motion_model(state, speed, yaw_speed, config.dt) # motion_model(state, left, right, config.dt)
         traj = np.vstack((traj, state))  # store state history
 
         # print(traj)
