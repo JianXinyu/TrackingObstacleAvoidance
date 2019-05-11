@@ -51,6 +51,7 @@ class Interface(object):
 		self.dev.pub_set1('pro.right.speed', right_motor)
 
 
+# TODO
 # pzh接口: 仿照上面的Interface类写的, 假设数据通过Msgdev发送
 class PortPzh:
 	def __init__(self, sub_addr, object_port):
@@ -83,6 +84,7 @@ def ship_initialize(USE_TLG001, USE_TLG002, USE_PZH):
 	else:
 		interface002 = None
 
+# TODO
 # pzh接口
 	if USE_PZH:
 		sub_addr3 = ''
@@ -107,8 +109,9 @@ ki = 3
 kd = 10
 
 # Algorithm
-PP = 0
-DWA = 1
+PP = True
+DWA = False
+USE_PZH = False
 
 # baseline = 1000
 baseline = [800, 1200, 1400]
@@ -346,27 +349,34 @@ class MovingAverage(object):
 # rm.update(1)
 # average = rm.avg # The first "max_len" values is not correct.
 
+#TODO
+def trans_coord(self_coord, self_angle, object_coord):
+	trans_matrix = np.array([[cos(self_angle), -sin(self_angle)],[sin(self_angle), cos(self_angle)]])
+	object_coord = trans_matrix * np.array(object_coord)
+	return object_coord + self_coord
 
-# TODO 斜坡函数,  PP&DWA合并
+
 def main():
 	# initialize
-	interface001, interface002, pzhdata = ship_initialize(True, True, False)
+	interface001, interface002, pzhdata = ship_initialize(True, True, USE_PZH)
 	pid = PID(kp=kp, ki=ki, kd=kd, minout=-1000, maxout=1000, sampleTime=0.1)
 
+	u = np.array([0.0, 0.0])  # speed, yaw speed
+	config = Config()
 	# initial state [x(m), y(m), yaw(rad), v(m/s), omega(rad/s)]
 	# 需要根据实际出发点赋值
 	x = np.array([0.0, 0.0, math.pi / 8.0, 0.0, 0.0])
 
 	# goal position [x(m), y(m)]
 	goal = np.array([-90, 3])
-	u = np.array([0.0, 0.0])
-	config = Config()
-
+	# obstacles
+	obstacles = []
 	csv_file = csv.writer(open("log-{:s}.txt".format(time.strftime("%m-%d-%H-%M", time.localtime())), 'w'))
 
-	csv_file.writerow(["timestamp", 'gps.posx', 'gps.posy', 'ahrs.yaw', 'ahrs.yaw_speed', 'gps.hspeed',
-												'gps.stdx', 'gps.stdy', 'gps.track',  'target.posx', 'target.posy', 'target.yaw', 'target.yaw_speed', 'target.hspeed',
-												'target.stdx', 'target.stdy', 'target.track', 'distance', 'left_motor', 'right_motor'])
+	csv_file.writerow(["timestamp", 'gps.posx', 'gps.posy', 'ahrs.yaw', 'ahrs.yaw_speed', 'gps.hspeed', 'gps.stdx',
+					'gps.stdy', 'gps.track',  'target.posx', 'target.posy', 'target.yaw', 'target.yaw_speed',
+					'target.hspeed', 'target.stdx', 'target.stdy', 'target.track', 'distance', 'left_motor',
+					'right_motor'])
 
 	t=PeriodTimer(0.5)
 	t.start()
@@ -377,16 +387,23 @@ def main():
 												'gps.stdx', 'gps.stdy', 'gps.track')
 				target_state=interface002.receive('gps.posx', 'gps.posy', 'ahrs.yaw', 'ahrs.yaw_speed', 'gps.hspeed',
 												'gps.stdx', 'gps.stdy', 'gps.track')
+				lidar_data = pzhdata.receive('data')
 
-				#target_angle, dist = pure_pursuit(self_state, target_state)
-				if PP == 1:
+				obstacles = np.array([[target_state[POS_X], target_state[POS_Y]]])
+				#TODO
+				if USE_PZH & lidar_data['target'] is not None:
+					goal = np.array(lidar_data['target']['centroid'])
+					del lidar_data['target']
+					for i in range(len(lidar_data)):
+						obstacles.append(lidar_data['object %s' %(i+1)]['centroid'])
+					obstacles = np.array(obstacles)
+
+				if PP:
 					target_angle, dist = pure_pursuit(self_state, target_state)
 					output = pid.compute(self_state[YAW], target_angle)
-				elif DWA == 1:
+				elif DWA:
 					x = [self_state[POS_X], self_state[POS_Y], self_state[YAW], self_state[SPD], self_state[YAW_SPEED]]
-					obstacle = [[target_state[POS_X], target_state[POS_Y]]]
-					obstacle = np.array(obstacle)
-					u, ltraj = dwa_control(x, u, config, goal, obstacle)
+					u, ltraj = dwa_control(x, u, config, goal, obstacles)
 					ideal_angle = self_state[YAW] + u[1]*0.1
 					output = pid.compute(self_state[YAW], ideal_angle)
 				else:
