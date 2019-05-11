@@ -2,7 +2,6 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 import time
-from msgdev import MsgDevice, PeriodTimer
 import sys
 import pysnooper
 
@@ -122,8 +121,8 @@ def motion_model(state, left, right, dt):
     phi = state[YAW]  # 艏向角，即船头与正北的夹角，范围为0~2PI， [rad]
     r0 = state[YAW_SPEED] # 艏向角速度 [rad/s]
 
-    left = left / 60    # 船舶左桨转速 [rpm]
-    right = right / 60  # 船舶右桨转速 [rpm]
+    left = left / 60    # 船舶左桨转速 [rps]
+    right = right / 60  # 船舶右桨转速 [rps]
 
     u = v0 * math.sin(phi) + u0 * math.cos(phi)
     v = v0 * math.cos(phi) - u0 * math.sin(phi)

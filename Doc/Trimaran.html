@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+    <html>
+    <head>
+        <meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+        <title>三体船使用流程</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.css" integrity="sha384-9eLZqc9ds8eNjO3TmqPeYcDj8n+Qfa4nuSiGYa6DjLNcv9BtN69ZIulL9+8CqC9Y" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+        <link href="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.css" rel="stylesheet" type="text/css">
+        <style>
+.task-list-item { list-style-type: none; } .task-list-item-checkbox { margin-left: -20px; vertical-align: middle; }
+</style>
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        
+        <script src="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.js"></script>
+    </head>
+    <body>
+        <h1 id="%E4%B8%89%E4%BD%93%E8%88%B9%E4%BD%BF%E7%94%A8%E6%B5%81%E7%A8%8B">三体船使用流程</h1>
+<ol>
+<li>电源接好(两个)</li>
+<li>WIFI天线 POE供电，一个网口接电脑，一个网口接天线，如接多个电脑，加一个交换机。接好后ping 192.168.1.19</li>
+<li>打开船载电源，ping192.168.1.150，若不通，则ping21，说明路由器能接通，路由器和主板的通讯有问题</li>
+<li>
+<ul>
+<li>配GPS基站，COM2接到电脑，运行TLG001-Landed Program-GPS_BS_Configuration 读约一分钟的位置，取均值，认为是精确值，运行完自动停掉。</li>
+<li>打开GPS_Tools, 选串口，打开。 input基站读到的位置数据，output是把差分信号往船上发。</li>
+</ul>
+</li>
+<li>
+<ul>
+<li>putty连船上主板，第一艘usv150&amp;gps100, 第二艘usv152&amp;gps102，账号密码sjtu。</li>
+<li>改程序直接在桌面TLG001/002修改，保存，右键SFTP-Upload file， 密码sjtu。</li>
+<li>“sudo python3 文件名 &amp;” &amp;放到后台运行：AHRS, GNSS(多开几个putty终端无需在后台)。 motor_tlg.py放在前台就行了. 再开一次putty打印电压。</li>
+<li>后台程序杀掉：
+<ul>
+<li>&quot;ps aux|grep py&quot;展示所有后台程序</li>
+<li>&quot;sudo kill -9 &quot;编号&quot;&quot;</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>putty登陆gps100, &quot;log bestposa ontime 2&quot; 每两秒发一次， sigle没有差分， narrowfolat/narrowint是有差分</li>
+<li>连上遥控杆, 打开landed_porgram-joystick_pub.py 右键-打开方式-python运行</li>
+<li>第二艘船需要插hub才能接Arduino读电压，需要改名字
+cd dev
+cd serial/by-id
+ls
+在相应船载文件修改URL</li>
+<li>关机sudo poweroff</li>
+</ol>
+<h1 id="appendix">Appendix</h1>
+<ol>
+<li>接线图：<img src="https://i.loli.net/2019/05/03/5ccb19a6acf69.png" alt="circuit.PNG"></li>
+<li>数据流：<img src="https://i.loli.net/2019/05/03/5ccb19fb394b9.png" alt="flow.PNG"></li>
+</ol>
+
+    </body>
+    </html>

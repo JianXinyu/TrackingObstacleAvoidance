@@ -36,8 +36,8 @@ def simulate(state, left, right, dt):
     y = state['y']
     u0 = state['u']
     v0 = state['v']
-    phi = state['phi']
-    r0 = state['alpha']
+    phi = state['phi']  # 艏向角
+    r0 = state['alpha'] # 角速度
 
     left = left / 60
     right = right / 60
@@ -87,7 +87,8 @@ old_state = {
     'alpha': 0  #normal(0, 0.01)
 }
 
-
+# x0-posx, x1-posy, x2-yaw, x3-u, x4-v
+# u0-u, u1-v
 def motion(x, u, dt):
     # motion model
 
@@ -140,7 +141,7 @@ def calc_final_input(x, u, dw, config, goal, ob):
     min_u[0] = 0.0
     best_traj = np.array([x])
 
-    # evalucate all trajectory with sampled input in dynamic window
+    # evaluate all trajectory with sampled input in dynamic window
     for v in np.arange(dw[0], dw[1], config.v_reso):
         for y in np.arange(dw[2], dw[3], config.yawrate_reso):
             traj = calc_trajectory(xinit, v, y, config)
