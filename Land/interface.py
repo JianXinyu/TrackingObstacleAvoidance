@@ -351,9 +351,10 @@ class MovingAverage(object):
 
 #TODO
 def trans_coord(self_coord, self_angle, object_coord):
-	trans_matrix = np.array([[cos(self_angle), -sin(self_angle)],[sin(self_angle), cos(self_angle)]])
-	object_coord = trans_matrix * np.array(object_coord)
-	return object_coord + self_coord
+	trans_matrix = np.mat([[cos(self_angle), -sin(self_angle)],[sin(self_angle), cos(self_angle)]])
+	object_coord = np.mat(object_coord).T
+	object_coord = trans_matrix * object_coord
+	return object_coord.T + np.mat(self_coord)
 
 
 def main():
@@ -396,7 +397,7 @@ def main():
 					del lidar_data['target']
 					for i in range(len(lidar_data)):
 						obstacles.append(lidar_data['object %s' %(i+1)]['centroid'])
-					obstacles = np.array(obstacles)
+					obstacles = trans_coord([self.state[POS_X], self_state[POS_Y]], self_state[YAW], np.array(obstacles))
 
 				if PP:
 					target_angle, dist = pure_pursuit(self_state, target_state)
