@@ -349,8 +349,10 @@ class MovingAverage(object):
 # rm.update(1)
 # average = rm.avg # The first "max_len" values is not correct.
 
+
 #TODO
 def trans_coord(self_coord, self_angle, object_coord):
+
 	trans_matrix = np.mat([[cos(self_angle), -sin(self_angle)],[sin(self_angle), cos(self_angle)]])
 	object_coord = np.mat(object_coord).T
 	object_coord = trans_matrix * object_coord
