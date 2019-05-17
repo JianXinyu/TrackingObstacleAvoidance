@@ -1,7 +1,7 @@
 import numpy as np
 import math
 import matplotlib.pyplot as plt
-from msgdev import PeriodTimer
+
 from PID import PID
 from math import cos, sin, pi
 from numpy.random import normal
@@ -147,6 +147,14 @@ def calc_target_index(state, cx, cy):
     return ind
 
 
+def pure_pursuit(self, target):
+    dx = target[0] - self[0]
+    dy = target[1] - self[1]
+    target_angle = math.atan2(dy, dx)
+    dist = (dx ** 2 + dy ** 2) ** .5
+    return target_angle, dist
+
+
 def main():
     pid = PID(kp=kp, ki=ki, kd=kd, minout=-2000, maxout=2000, sampleTime=0.1)
     # 设置初始状态
@@ -168,9 +176,15 @@ def main():
     target_ind = calc_target_index(state, cx, cy)
 
     point = {'x': 0, 'y': 0}
+
+    target_point = [0, 0]
     while T >= time and lastIndex > target_ind:
 
-        ideal_angle, target_ind, dist = pure_pursuit_control(state, cx, cy, target_ind)
+        # ideal_angle, target_ind, dist = pure_pursuit_control(state, cx, cy, target_ind
+        self_point = [state['x'], state['y']]
+        target_point[0] += 0.1
+        target_point[1] += 0.1
+        ideal_angle, dist = pure_pursuit(self_point, target_point)
         output = pid.compute(state['phi'], ideal_angle)
         output = 0 if abs(output) < 5 else output
         if dist <= 3:
@@ -194,13 +208,11 @@ def main():
         v.append(math.sqrt(state['u'] ** 2 + state['v'] ** 2))
         t.append(time)
 
-        point = point_generate(point)
-
         plt.cla()
         plt.plot(cx, cy, ".r", label="course")
         plt.plot(x, y, "-b", label="trajectory")
         plt.plot(cx[target_ind], cy[target_ind], "go", label="target")
-        plt.plot(point['x'], point['y'], "go", label="point")
+        plt.plot(target_point[0], target_point[1], "go", label="point")
         plt.axis("equal")
         plt.grid(True)
         plt.title("Speed[km/h]:" + str(math.sqrt(state['u'] ** 2 + state['v'] ** 2) * 3.6)[:4])

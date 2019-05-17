@@ -525,12 +525,11 @@ if __name__ == "__main__":
         'u': 0,
         'v': 0,
         'yaw': 0,
-        'yaw_spd': 0
+        'yaw_spd': 0.0
     }
     x = init_state
     left = 1500
-    right = 1500
-
+    right = 0
     cnt = 0
     flag = 0
     spd_rec = deque(maxlen=2)

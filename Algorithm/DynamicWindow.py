@@ -1,268 +1,103 @@
-import numpy as np
+"""
+Mobile robot motion planning sample with Dynamic Window Approach
+author: Atsushi Sakai (@Atsushi_twi)
+"""
+from PID import PID
 import math
+import numpy as np
 import matplotlib.pyplot as plt
-import time
-import sys
-import pysnooper
 
+import sys
 sys.path.append("../../")
 
 
 show_animation = True
 
-# record direction
-RecordPath = 'C:/Users/jianx/Desktop'
 
-# Obstacle Coordinate
+class Config():
+    # simulation parameters
 
-# Obstacle Radius: m
-obstacle_r = 1
-
-# Target Ship Coordinate
-
-# Time Period, unit: s
-dt = 0.5
-
-# Vehicle Kinematic Parameters
-# max speed: m/s; max rotate speed: rad/s; max accelerated speed: m/s^2; max rotational acceleration: rad/s^2
-# speed resolution: m/s; rotate speed resolution: rad/s
-Kinematic = [1.0, math.radians(20.0), 0.2, math.radians(50.0), 0.01, math.radians(1)]
-
-# Evaluation Function Parameters
-# Weight of Course, Weight of Distance, Weight of Speed, Time to simulate the trajectory forward(s)
-EvalParam = [0.05, 0.2, 0.1, 3.0]
-
-# Simulation Area [x_min, x_max, y_min, y_max]
-area = [0, 12, 0, 12]
-
-# Save Simulation Result
-result = []
-
-# obstacles是一个字典：keyword是障碍物的index，从0开始的序列； value是Obstacle类
-obstacles = {}
-
-# target是一个list
-target = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-
-vehicle_state = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]  # , 0.0, 0.0]
-# 下标宏定义
-POSE_X      = 0
-POSE_Y      = 1
-SPD         = 2
-SPD_DIR     = 3
-YAW         = 4
-YAW_SPEED   = 5
-# LEFT_RPM    = 6
-# RIGHT_RPM   = 7
-
-
-class MyTimer(object):
-    """用上下文管理器计时"""
-    def __enter__(self):
-        self.t0 = time.time()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        print('[finished, spent time: {time:.2f}s]'.format(time=time.time() - self.t0))
-
-
-class Config:
     def __init__(self):
-        # Vehicle Kinematic Parameters
+        # robot parameter
         self.max_speed = 1.0  # [m/s]
         self.min_speed = 0  # [m/s]
-        self.max_yawrate = math.radians(20.0)  # max rotate speed [rad/s]
-        self.max_accel = 0.2  # max accelerated speed [m/ss]
-        self.max_dyawrate = math.radians(50.0)  # max rotational acceleration [rad/ss]
-        self.speed_reso = 0.01  # speed resolution[m/s]
-        self.yawrate_reso = math.radians(1)  # rotate speed resolution [rad/s]
-        self.dt = 0.1  # Time Period [s]
-        self.predict_time = 3.0  # Time to simulate the trajectory forward [s]
-        # Evaluation Function Parameters
-        self.to_goal_cost_gain = 1.0
-        self.speed_cost_gain = 1.0
-        self.obstacle_radius = 2.0  # [m]
+        self.max_yawrate = 40.0 * math.pi / 180.0  # [rad/s]
+        self.max_accel = 0.2  # [m/ss]
+        self.max_dyawrate = 40.0 * math.pi / 180.0  # [rad/ss]
+        self.v_reso = 0.05  # [m/s]
+        self.yawrate_reso = 5 * math.pi / 180.0  # [rad/s]
+        self.dt = 0.1  # [s]
+        self.dT = 1.45  # [s]
+        self.predict_time = 6.0  # [s]
+        self.to_goal_cost_gain = 0.01 # 1.0
+        self.speed_cost_gain = 0.5
+        self.robot_radius = 3.0  # [m]
 
 
-class VehicleState:
-    def __init__(self, posx=0.0, posy=0.0, hspeed=0.0, track=0.0, yaw=0.0, yaw_speed=0.0, l_m=0.0, r_m=0.0):
-        self.posx = posx
-        self.posy = posy
-        self.spd = hspeed
-        self.spddir = track
-        self.yaw = yaw
-        self.yawspd = yaw_speed
-        self.leftrpm = l_m
-        self.rightrpm = r_m
+def motion(x, u, dt):
+    # motion model
+
+    x[2] += u[1] * dt
+    x[0] += u[0] * math.cos(x[2]) * dt
+    x[1] += u[0] * math.sin(x[2]) * dt
+    x[3] = u[0]
+    x[4] = u[1]
+
+    return x
 
 
-# def draw_obstacles():
-class Obstacle:
-    def __init__(self, posx=0.0, posy=0.0, spd=0.0, spddir=0.0): # index=0, radius = 0.0, yaw=0.0, yawspd=0.0
-        # self.index = index
-        # self.radius = radius
-        self.posx = posx
-        self.posy = posy
-        self.spd = spd
-        self.spddir = spddir
-        # self.yaw = yaw
-        # self.yawspd = yawspd
+def calc_dynamic_window(x, config):
 
+    # Dynamic window from robot specification
+    Vs = [config.min_speed, config.max_speed,
+          -config.max_yawrate, config.max_yawrate]
 
+    # Dynamic window from motion model
+    Vd = [x[3] - config.max_accel * config.dT,
+          x[3] + config.max_accel * config.dT,
+          x[4] - config.max_dyawrate * config.dT,
+          x[4] + config.max_dyawrate * config.dT]
 
-# def motion_model(state, speed, yaw_speed, dt)：
-
-
-# trimaran model
-def motion_model(state, left, right, dt):
-    x = state[POSE_X]  # 北东系x坐标
-    y = state[POSE_Y]  # 北东系y坐标
-    u0 = state[SPD] * math.cos(state[SPD_DIR]) # x方向速度(大地坐标系) [m/s]
-    v0 = state[SPD] * math.sin(state[SPD_DIR]) # y方向速度(大地坐标系) [m/s]
-    phi = state[YAW]  # 艏向角，即船头与正北的夹角，范围为0~2PI， [rad]
-    r0 = state[YAW_SPEED] # 艏向角速度 [rad/s]
-
-    left = left / 60    # 船舶左桨转速 [rps]
-    right = right / 60  # 船舶右桨转速 [rps]
-
-    u = v0 * math.sin(phi) + u0 * math.cos(phi)
-    v = v0 * math.cos(phi) - u0 * math.sin(phi)
-    du = (-6.7 * u ** 2 + 15.9 * r0 ** 2 + 0.01205 * (left ** 2 + right ** 2) - 0.0644 * (
-        u * (left + right) + 0.45 * r0 * (left - right)) + 58 * r0 * v) / 33.3
-    dv = (-29.5 * v + 11.8 * r0 - 33.3 * r0 * u) / 58
-    dr = (-0.17 * v - 2.74 * r0 - 4.78 * r0 * abs(r0) + 0.45 * (
-        0.01205 * (left ** 2 - right ** 2) - 0.0644 * (
-            u * (left - right) + 0.45 * r0 * (left + right)))) / 6.1
-    u1 = u + du * dt
-    v1 = v + dv * dt
-    r = r0 + dr * dt
-    phi1 = phi + (r + r0) * dt / 2
-    U = u1 * math.cos(phi) - v1 * math.sin(phi)
-    V = u1 * math.sin(phi) + v1 * math.cos(phi)
-    spd = np.linalg.norm([U, V])
-    spddir = math.atan(V/U)
-    X = x + (u0 + U) * dt / 2
-    Y = y + (v0 + V) * dt / 2
-
-    phi1 = phi1 % (2 * math.pi)
-
-    return [X, Y, spd, spddir, phi1, r]
-
-    # X = state[POSE_X]  # 北东系x坐标
-    # Y = state[POSE_Y]  # 北东系y坐标
-    # state[YAW] += yaw_speed * dt
-    # X += speed * math.cos(state[YAW]) * dt
-    # Y += speed * math.sin(state[YAW]) * dt
-    # state[SPD] = speed
-    # state[YAW_SPEED] = yaw_speed
-
-
-    # return [X, Y, state[SPD], state[SPD_DIR], state[YAW],state[YAW_SPEED]]
-
-def calc_dynamic_window(currentstate, kineticconfig): #, min_dist):
-    # 速度的最大最小范围 依次为：最小速度 最大速度 最小角速度 最大角加速度
-    Vs = [kineticconfig.min_speed, kineticconfig.max_speed,
-          -kineticconfig.max_yawrate, kineticconfig.max_yawrate]
-
-    # 障碍物约束， 要求能在碰到障碍物之前停下来 # TODO 改为圆弧模型
-    # Va = (2*kineticconfig.max_accel*min_dist)**.5
-
-    # 根据当前速度以及加速度限制计算的动态窗口, 依次为：最小速度 最大速度 最小角速度 最大角速度
-    Vd = [currentstate[SPD] - kineticconfig.max_accel * kineticconfig.dt,
-          currentstate[SPD] + kineticconfig.max_accel * kineticconfig.dt,
-          currentstate[YAW_SPEED] - kineticconfig.max_dyawrate * kineticconfig.dt,
-          currentstate[YAW_SPEED] + kineticconfig.max_dyawrate * kineticconfig.dt]
-
-    #  [vmin, vmax, yawrate min, yawrate max]
-    dw = [max(Vs[0], Vd[0]), min(Vs[1], Vd[1]),# Va),
+    #  [vmin,vmax, yawrate min, yawrate max]
+    dw = [max(Vs[0], Vd[0]), min(Vs[1], Vd[1]),
           max(Vs[2], Vd[2]), min(Vs[3], Vd[3])]
 
     return dw
 
 
-def calc_braking_distance():
-    pass
+def calc_trajectory(xinit, v, y, config):
 
-
-# brief: 单条轨迹生成、轨迹推演函数
-# param: state 三体船当前位姿； left，right 左右螺旋桨转速；config 三体船动力学参数
-# retval:
-
-# @pysnooper.snoop()
-def calc_trajectory(state, speed, yaw_speed, config):
-
-    traj = np.array(state)
+    x = np.array(xinit)
+    traj = np.array(x)
     time = 0
     while time <= config.predict_time:
-        state_tmp = motion_model(state, speed, yaw_speed, config.dt)
-        traj = np.vstack((traj, state_tmp))  # 记录当前及所有预测的点
+        x = motion(x, [v, y], config.dt)
+        traj = np.vstack((traj, x))
         time += config.dt
 
     return traj
 
 
-# TODO 确定输出类型
-def calc_obstacle_eval(trajectory, obstacles, config):
-    # brief: 障碍物距离评价函数(在当前轨迹上与最近的障碍物之间的距离，如果没有障碍物则设定一个常数),距离障碍物距离越近分数越低
-    # param: state 三体船当前位姿， obstacles 所有障碍物位置，config 三体船动力学参数
-    # retval: 当前预测的轨迹终点的位姿距离所有障碍物中最近的障碍物的距离,如果大于设定的最大值则等于最大值.
-    # calc obstacle cost inf: collision, 0:free
-    skip_n = 2  # 没必要计算每个轨迹点
-    min_dist = float("inf")  # 无穷大
-    for ii in range(0, len(trajectory[:, 1]), skip_n):
-        for i in range(len(obstacles)):
-            dist = np.linalg.norm([(trajectory[ii, POSE_X] - obstacles[i].posx), (trajectory[ii, POSE_Y] - obstacles[i].posy)])
-            # math.sqrt((state[POSE_X] - obstacles[i].posx)**2 + (state[POSE_Y] - obstacles[i].posy)**2)
+def calc_final_input(x, u, dw, config, goal, ob):
 
-            if dist <= config.obstacle_radius:
-                return float("Inf")  # collision
-
-            if min_dist >= dist:
-                min_dist = dist
-
-    if min_dist >= 100:  # 给障碍物距离评价限定最大值，防止没有障碍物的轨迹占比过重
-        min_dist = 100
-
-    return min_dist  # 1.0 / min_dist  # OK
-
-
-# TODO 相对于yaw的偏角
-def calc_to_goal_eval(traj, goal, config):
-    # calc to goal cost. It is 2D norm.
-
-    goal_magnitude = math.sqrt(goal[POSE_X]**2 + goal[POSE_Y]**2)
-    traj_magnitude = math.sqrt(traj[-1, POSE_X]**2 + traj[-1, POSE_Y]**2)
-    dot_product = (goal[POSE_X] * traj[-1, POSE_X]) + (goal[POSE_Y] * traj[-1, POSE_Y])
-    error = dot_product / (goal_magnitude * traj_magnitude)
-    error_angle = math.acos(error)
-    cost = error_angle * config.to_goal_cost_gain
-
-    return cost  # error_angle  # cost
-
-
-def calc_speed_cost(traj, config):
-    cost = (config.max_speed - traj[-1, SPD]) * config.speed_cost_gain
-    return cost  # config.max_speed - traj[-1, SPD]  # cost
-
-
-def eval_func(state, dw, config, goal, obstacles, speed, yaw_speed):
-    # xinit = state[:]
+    xinit = x[:]
     min_cost = 10000.0
-    # min_u = [0.0, 0.0]
-    speed = 0.0
-    yaw_speed = 0.0
-    best_traj = np.array([state])
-
-    # evaluate all trajectory with sampled input in dynamic window
-    for v in np.arange(dw[0], dw[1], config.speed_reso):
+    min_u = u
+    min_u[0] = 0.0
+    best_traj = np.array([x])
+    i = 0
+    traj_all = {}
+    # evalucate all trajectory with sampled input in dynamic window
+    for v in np.arange(dw[0], dw[1], config.v_reso):
         for y in np.arange(dw[2], dw[3], config.yawrate_reso):
-            state[SPD] = v
-            state[YAW] = y
-            traj = calc_trajectory(state, speed, yaw_speed, config)
-
+            traj = calc_trajectory(xinit, v, y, config)
+            traj_all[i] = np.array(traj)
+            i += 1
             # calc cost
-            to_goal_cost = calc_to_goal_eval(traj, goal, config)  # 前项预测终点的航向得分, 偏差越小分数越高
-            speed_cost = calc_speed_cost(traj, config)  # 速度得分 速度越快分越高
-            ob_cost = 1.0 / calc_obstacle_eval(traj, obstacles, config)   # 前项预测终点 距离最近障碍物的间隙得分 距离越远分数越高
+            to_goal_cost = calc_to_goal_cost(traj, goal, config)
+            speed_cost = config.speed_cost_gain * \
+                (config.max_speed - traj[-1, 3])
+            ob_cost = calc_obstacle_cost(traj, ob, config)
             # print(ob_cost)
 
             final_cost = to_goal_cost + speed_cost + ob_cost
@@ -272,22 +107,60 @@ def eval_func(state, dw, config, goal, obstacles, speed, yaw_speed):
             # search minimum trajectory
             if min_cost >= final_cost:
                 min_cost = final_cost
-                # min_u = [v, y]
-                speed = v
-                yaw_speed = y
+                min_u = [v, y]
                 best_traj = traj
+    print('goal_cost', to_goal_cost, 'speed_cost', speed_cost, 'obstacle_cost', ob_cost)
+    print(dw)
+    return min_u, best_traj, traj_all
 
-    return speed, yaw_speed, best_traj
+
+def calc_obstacle_cost(traj, ob, config):
+    # calc obstacle cost inf: collistion, 0:free
+
+    skip_n = 2
+    minr = float("inf")
+
+    for ii in range(0, len(traj[:, 1]), skip_n):
+        for i in range(len(ob[:, 0])):
+            ox = ob[i, 0]
+            oy = ob[i, 1]
+            dx = traj[ii, 0] - ox
+            dy = traj[ii, 1] - oy
+
+            r = math.sqrt(dx**2 + dy**2)
+            if r <= config.robot_radius:
+                return float("Inf")  # collision
+
+            if minr >= r:
+                minr = r
+
+    return 1.0 / minr  # OK
 
 
-def dwa_control(state, config, goal, obstacles, speed, yaw_speed):
+def calc_to_goal_cost(traj, goal, config):
+    # calc to goal cost. It is 2D norm.
+    # cnt = len(traj) // 5
+    # goal_magnitude = math.sqrt(goal[0]**2 + goal[1]**2)
+    # # traj_magnitude = math.sqrt(traj[-1, 0]**2 + traj[-1, 1]**2)
+    # # dot_product = (goal[0] * traj[-1, 0]) + (goal[1] * traj[-1, 1])
+    # traj_magnitude = math.sqrt(traj[cnt, 0]**2 + traj[cnt, 1]**2)
+    # dot_product = (goal[0] * traj[cnt, 0]) + (goal[1] * traj[cnt, 1])
+    # error = dot_product / (goal_magnitude * traj_magnitude + 1e-6)
+    # error_angle = math.acos(error)
+    # cost = config.to_goal_cost_gain * error_angle
+    dist = math.sqrt((goal[0]-traj[-1, 0])**2 + (goal[1]-traj[-1, 1])**2)
+    cost = config.to_goal_cost_gain * dist
+    return cost
+
+
+def dwa_control(x, u, config, goal, ob):
     # Dynamic Window control
-   # min_dist = calc_obstacle_eval(traj, obstacles, config)
-    dw = calc_dynamic_window(state, config) #, min_dist)
 
-    speed, yaw_speed, traj = eval_func(state, dw, config, goal, obstacles, speed, yaw_speed)
+    dw = calc_dynamic_window(x, config)
 
-    return speed, yaw_speed, traj
+    u, traj, traj_all = calc_final_input(x, u, dw, config, goal, ob)
+
+    return u, traj, traj_all
 
 
 def plot_arrow(x, y, yaw, length=0.5, width=0.1):  # pragma: no cover
@@ -296,64 +169,165 @@ def plot_arrow(x, y, yaw, length=0.5, width=0.1):  # pragma: no cover
     plt.plot(x, y)
 
 
-def main():
-    # Initialize
-    config = Config()
-    # left = 1000
-    # right = 1000
-    speed = 0.0
-    yaw_speed = 0.0
-    state = motion_model(vehicle_state, speed, yaw_speed, config.dt)
+from math import sin, cos, pi, atan2
+POSX = 0
+POSY = 1
+YAW = 2
+SPD = 3
+YAWSPD = 4
+
+
+# 注意适用范围: left, right 0~1000 rpm
+# left, right都为正表示前进
+def trimaran_model(state, left, right, dt):
+    # X0 = state['x']  # 北东系x坐标 [m]
+    # Y0 = state['y']  # 北东系y坐标 [m]
+    # U0 = state['U']  # x方向速度(大地坐标系) [m/s] TODO 输入应该是速度和速度方向, 既然漂角很小, 那船横向速度v0是不是就是0
+    # V0 = state['V']  # y方向速度(大地坐标系) [m/s]
+    # phi0 = state['yaw']  # 艏向角，即船头与正北的夹角，范围为0~2PI [rad]
+    # r0 = state['yaw_spd']  # 艏向角速度 [rad/s]
+    X0 = state[POSX]
+    Y0 = state[POSY]
+    U0 = state[SPD] * cos(state[YAW])
+    V0 = state[SPD] * sin(state[YAW])
+    phi0 = state[YAW]
+    r0 = state[YAWSPD]
+
+    left = left / 60  # 船舶左桨转速 [rps]
+    right = right / 60  # 船舶右桨转速 [rps]
+
+    u0 = V0 * sin(phi0) + U0 * cos(phi0)  # 转为随船坐标系, i.e. 船纵向速度
+    v0 = V0 * cos(phi0) - U0 * sin(phi0)  # 船横向速度
+
+    #  根据当前状态, 螺旋桨转速1500, 1500 / 0, 1500, 求du, dv, dr极值
+    du = (-6.7 * u0 ** 2 + 15.9 * r0 ** 2 + 0.01205 * (left ** 2 + right ** 2) - 0.0644 * (
+        u0 * (left + right) + 0.45 * r0 * (left - right)) + 58 * r0 * v0) / 33.3
+    dv = (-29.5 * v0 + 11.8 * r0 - 33.3 * r0 * u0) / 58
+    dr = (-0.17 * v0 - 2.74 * r0 - 4.78 * r0 * abs(r0) + 0.45 * (
+        0.01205 * (left ** 2 - right ** 2) - 0.0644 * (
+            u0 * (left - right) + 0.45 * r0 * (left + right)))) / 6.1
+
+    u = u0 + du * dt
+    v = v0 + dv * dt
+
+    r = r0 + dr * dt    # 更新后的转艏角速度
+    phi = phi0 + (r + r0) * dt / 2  # 更新后的艏向角
+    phi = phi % (2 * pi)
+    U = u * cos(phi) - v * sin(phi)  # 更新后的速度, 转为大地坐标系
+    V = u * sin(phi) + v * cos(phi)
+    state[POSX] = X0 + (U0 + U) * dt / 2   # 更新后的坐标
+    state[POSY] = Y0 + (V0 + V) * dt / 2
+    state[YAW] = phi
+    state[SPD] = math.sqrt(U ** 2 + V ** 2)
+    state[YAWSPD] = r
+
+    # return {
+    #     'x': X,
+    #     'y': Y,
+    #     'U': U,
+    #     'V': V,
+    #     'yaw': phi,
+    #     'yaw_spd': r
+    # }
+    return state
+
+
+def pure_pursuit(self, target):
+    dx = target[POSX] - self[POSX]
+    dy = target[POSY] - self[POSY]
+    target_angle = atan2(dy, dx)
+    dist = (dx ** 2 + dy ** 2) ** .5
+    return target_angle, dist
+
+
+def main(gx=40, gy=40):
     print(__file__ + " start!!")
     # initial state [x(m), y(m), yaw(rad), v(m/s), omega(rad/s)]
-    # x = np.array([0.0, 0.0, math.pi / 8.0, 0.0, 0.0])
+    x = np.array([0.0, 0.0, math.pi / 8.0, 0.0, 0.0])
     # goal position [x(m), y(m)]
-    goal = np.array([10, 10])
+    goal = np.array([gx, gy])
     # obstacles [x(m) y(m), ....]
-    # ob = np.array([[-1, -1],
-    #                [0, 2],
-    #                [4.0, 2.0],
-    #                [5.0, 4.0],
-    #                [5.0, 5.0],
-    #                [5.0, 6.0],
-    #                [5.0, 9.0],
-    #                [8.0, 9.0],
-    #                [7.0, 9.0],
-    #                [12.0, 12.0]
-    #                ])
-    obstacles[0] = Obstacle(4.0, 2.0)
-    obstacles[1] = Obstacle(5.0, 5.0)
-    obstacles[2] = Obstacle(5.0, 6.0)
-    obstacles[3] = Obstacle(5.0, 9.0)
-    obstacles[4] = Obstacle(8.0, 9.0)
-    obstacles[5] = Obstacle(7.0, 9.0)
-    obstacles[6] = Obstacle(12.0, 12.0)
-    obstacles[7] = Obstacle(0, 2)
+    ob = np.array([[10.0, 10.0],
+                   [10.0, 20.0],
+                   [20.0, 30.0],
+                   [30.0, 30.0],
+                   [30.0, 25.0],
+                   [40.0, 15.0]
+                   ])
+
     u = np.array([0.0, 0.0])
-    traj = np.array(state)
+    config = Config()
+    traj = np.array(x)
 
+    pid_yaw = PID(kp=800, ki=3, kd=10, minout=-1200, maxout=1200, sampleTime=0.1)
+    pid_spd = PID(kp=3000.0, ki=100.0, kd=0, minout=0, maxout=2000, sampleTime=0.1)
+    pid_yawspd = PID(kp=5000, ki=10.0, kd=0, minout=-1200, maxout=1200, sampleTime=0.1)
     for i in range(1000):
-        speed, yaw_speed, ltraj = dwa_control(state, config, goal, obstacles, speed, yaw_speed)
+        ob[0, 0] -= 0.05
+        ob[0, 1] -= 0.05
+        ob[1, 0] -= 0.025
+        ob[1, 1] += 0.025
+        ob[3, 0] -= 0.2
+        ob[3, 1] -= 0.2
+        ob[4, 0] += 0.1
+        ob[4, 1] += 0.1
+        ob[5, 0] -= 0.1
+        ob[5, 1] += 0.1
+        goal[0] += 0.1
+        goal[1] += 0.1
+        u, ltraj, traj_all = dwa_control(x, u, config, goal, ob)
 
-        state = motion_model(state, speed, yaw_speed, config.dt) # motion_model(state, left, right, config.dt)
-        traj = np.vstack((traj, state))  # store state history
+        # x = motion(x, u, config.dt)
+        # target_point = ltraj[-1]  # ltraj[len(ltraj) // 3]
+        # # target_point = goal
+        # real_point = x
+        # target_angle, dist = pure_pursuit(real_point, target_point)
+        # if target_angle < 0:
+        #     target_angle += 2 * pi
+        # if dist <= 3:
+        #     average = 600
+        # elif dist <= 10:
+        #     average = 800
+        # else:
+        #     average = 1000
+        # output = pid_yaw.compute(x[YAW], target_angle)
+        # print('output', output, 'ideal_angle', target_angle, 'real_angle', x[YAW])
+        # output = 0 if abs(output) < 5 else output
+        # left, right = average + output / 2, average - output / 2
+        average_forward = 0  # 4000 * (0.2825 * u[0]**2 + 0.3648 * u[0])
+        diff_forward = 0  # 2400 * (1.8704 * u[1]**2 + 0.5533 * u[1])
+        average = pid_spd.compute(x[SPD], u[0])
+        diff = pid_yawspd.compute(x[YAWSPD], u[1])
+        # print('output', output, 'ideal_angle', target_angle, 'real_angle', state[YAW])
+        print('real_spd', round(x[SPD],2), 'target_spd', round(u[0],2), 'output', round(average,2), 'forward', round(average_forward,2))
+        print('real_yawspd', round(x[YAWSPD],2), 'target_yawspd', round(u[1], 2), 'output', round(diff,2), 'forward', round(diff_forward,2))
+        average = 0 if abs(average) < 5 else average
+        diff = 0 if abs(diff) < 5 else diff
+        left, right = average + average_forward + (diff + diff_forward) / 2, average+average_forward - (diff + diff_forward) / 2
+        left = max(min(left, 1500), 0)
+        right = max(min(right, 1500), 0)
+        print('left', left, 'right', right)
+        x = trimaran_model(x, left, right, 0.1)
+
+        traj = np.vstack((traj, x))  # store state history
 
         # print(traj)
 
         if show_animation:
             plt.cla()
-            plt.plot(ltraj[:, 0], ltraj[:, 1], "-g")
-            plt.plot(state[POSE_X], state[POSE_Y], "xr")
+            plt.plot(ltraj[:, 0], ltraj[:, 1], color="red", linewidth=1)
+            # for point in range(len(traj_all)):
+            #     plt.plot(traj_all[point][:, 0], traj_all[point][:, 1], color="green", linewidth=0.1)
+            plt.plot(x[0], x[1], "xr")
             plt.plot(goal[0], goal[1], "xb")
-            for i in range(len(obstacles)):
-                plt.plot(obstacles[i].posx, obstacles[i].posy, "ok")
-            plot_arrow(state[POSE_X], state[POSE_Y], state[YAW])
+            plt.plot(ob[:, 0], ob[:, 1], "ok")
+            plot_arrow(x[0], x[1], x[2])
             plt.axis("equal")
             plt.grid(True)
             plt.pause(0.0001)
 
         # check goal
-        if math.sqrt((state[0] - goal[0])**2 + (state[1] - goal[1])**2) <= config.obstacle_radius:
+        if math.sqrt((x[0] - goal[0])**2 + (x[1] - goal[1])**2) <= config.robot_radius:
             print("Goal!!")
             break
 
@@ -363,6 +337,7 @@ def main():
         plt.pause(0.0001)
 
     plt.show()
+
 
 if __name__ == '__main__':
     main()

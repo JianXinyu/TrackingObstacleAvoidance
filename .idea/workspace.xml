@@ -13,7 +13,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Land/interface.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="7650">
+            <state relative-caret-position="322">
               <caret line="450" selection-start-line="450" selection-end-line="450" />
               <folding>
                 <element signature="e#0#11#0" expanded="true" />
@@ -25,8 +25,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Land/interface2.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1293">
-              <caret line="555" lean-forward="true" selection-start-line="555" selection-end-line="555" />
+            <state relative-caret-position="221">
+              <caret line="551" lean-forward="true" selection-start-line="551" selection-end-line="551" />
               <folding>
                 <element signature="e#0#10#0" expanded="true" />
               </folding>
@@ -37,20 +37,20 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Algorithm/DynamicWindow.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="259">
-              <caret line="148" lean-forward="true" selection-start-line="148" selection-end-line="148" />
+            <state relative-caret-position="68">
+              <caret line="150" selection-start-line="150" selection-end-line="152" selection-end-column="15" />
               <folding>
-                <element signature="e#0#18#0" expanded="true" />
+                <element signature="e#110#129#0" expanded="true" />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Algorithm/DWA.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="102">
-              <caret line="153" lean-forward="true" selection-start-line="153" selection-end-line="153" />
+            <state relative-caret-position="1639">
+              <caret line="337" column="49" lean-forward="true" selection-start-line="337" selection-start-column="49" selection-end-line="337" selection-end-column="49" />
               <folding>
                 <element signature="e#0#11#0" expanded="true" />
               </folding>
@@ -58,14 +58,23 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Algorithm/DWA_new.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-305">
-              <caret line="50" column="55" lean-forward="true" selection-start-line="50" selection-start-column="55" selection-end-line="50" selection-end-column="55" />
+            <state relative-caret-position="-2777">
+              <caret line="21" column="19" selection-start-line="21" selection-start-column="19" selection-end-line="21" selection-end-column="19" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/Algorithm/PID.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="289">
+              <caret line="33" lean-forward="true" selection-start-line="33" selection-end-line="33" />
             </state>
           </provider>
         </entry>
@@ -96,6 +105,7 @@
       <find>phi1</find>
       <find>v1</find>
       <find>dwa_control</find>
+      <find>trimaran_model</find>
     </findStrings>
     <replaceStrings>
       <replace>phi0</replace>
@@ -115,26 +125,28 @@
         <option value="$PROJECT_DIR$/DynamicWindow.py" />
         <option value="$PROJECT_DIR$/DWAon_board.py" />
         <option value="$PROJECT_DIR$/interface.py" />
-        <option value="$PROJECT_DIR$/Algorithm/DynamicWindow.py" />
         <option value="$PROJECT_DIR$/Test/interface2.py" />
         <option value="$PROJECT_DIR$/Land/interface.py" />
+        <option value="$PROJECT_DIR$/Algorithm/Simulator.py" />
         <option value="$PROJECT_DIR$/Algorithm/DWA.py" />
-        <option value="$PROJECT_DIR$/Algorithm/DWA_new.py" />
+        <option value="$PROJECT_DIR$/Algorithm/PurePursuit.py" />
+        <option value="$PROJECT_DIR$/Algorithm/PID.py" />
         <option value="$PROJECT_DIR$/Land/interface2.py" />
+        <option value="$PROJECT_DIR$/Algorithm/DynamicWindow.py" />
+        <option value="$PROJECT_DIR$/Algorithm/DWA_new.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="-11" />
-    <option name="width" value="980" />
-    <option name="height" value="1091" />
+    <option name="x" value="-12" />
+    <option name="width" value="981" />
+    <option name="height" value="1092" />
   </component>
   <component name="ProjectView">
     <navigator proportions="" version="1">
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -142,10 +154,16 @@
               <item name="TrackingObstacleAvoidance" type="b2602c69:ProjectViewProjectNode" />
               <item name="TrackingObstacleAvoidance" type="462c0819:PsiDirectoryNode" />
             </path>
+            <path>
+              <item name="TrackingObstacleAvoidance" type="b2602c69:ProjectViewProjectNode" />
+              <item name="TrackingObstacleAvoidance" type="462c0819:PsiDirectoryNode" />
+              <item name="Algorithm" type="462c0819:PsiDirectoryNode" />
+            </path>
           </expand>
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -165,8 +183,8 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.interface2 ">
-    <configuration name="DWA" type="PythonConfigurationType" factoryName="Python" temporary="true">
+  <component name="RunManager" selected="Python.DWA_new">
+    <configuration name="DWA (1)" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="TrackingObstacleAvoidance" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -174,11 +192,11 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/Algorithm" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/DWA.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/Algorithm/DWA.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -200,6 +218,27 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/Algorithm/DWA.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="DWA_new" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="TrackingObstacleAvoidance" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/Algorithm" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/Algorithm/DWA_new.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -250,6 +289,27 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="PurePursuit" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="TrackingObstacleAvoidance" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/Algorithm" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/Algorithm/PurePursuit.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="interface2 " type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="TrackingObstacleAvoidance" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -272,17 +332,19 @@
       <method v="2" />
     </configuration>
     <list>
-      <item itemvalue="Python.DynamicWindow" />
-      <item itemvalue="Python.DWA" />
       <item itemvalue="Python.interface2 " />
+      <item itemvalue="Python.DWA_new" />
+      <item itemvalue="Python.DWA (1)" />
+      <item itemvalue="Python.PurePursuit" />
+      <item itemvalue="Python.DynamicWindow" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.DWA_new" />
+        <item itemvalue="Python.DynamicWindow" />
         <item itemvalue="Python.interface2 " />
-        <item itemvalue="Python.DWA" />
-        <item itemvalue="Python.DynamicWindow" />
-        <item itemvalue="Python.DWA" />
-        <item itemvalue="Python.DynamicWindow" />
+        <item itemvalue="Python.PurePursuit" />
+        <item itemvalue="Python.DWA (1)" />
       </list>
     </recent_temporary>
   </component>
@@ -310,21 +372,22 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="-7" y="-7" width="1295" height="735" extended-state="6" />
+    <editor active="true" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.18189038" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" weight="0.25373134" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.37810946" />
+      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.30514097" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.43781096" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" weight="0.3217247" />
       <window_info anchor="bottom" id="Version Control" order="7" weight="0.3283582" />
       <window_info anchor="bottom" id="Terminal" order="8" weight="0.3615257" />
       <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" weight="0.3283582" />
-      <window_info active="true" anchor="bottom" id="Python Console" order="10" visible="true" weight="0.23880596" />
+      <window_info anchor="bottom" id="Python Console" order="10" weight="0.42620233" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -338,8 +401,26 @@
           <line>295</line>
           <option name="timeStamp" value="3" />
         </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/Algorithm/DWA_new.py</url>
+          <line>175</line>
+          <option name="timeStamp" value="62" />
+        </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
+    <watches-manager>
+      <configuration name="PythonConfigurationType">
+        <watch expression="trajectory" />
+        <watch expression="length" />
+        <watch expression=" config.dT" />
+        <watch expression="predicted_time" />
+        <watch expression="dw" />
+        <watch expression="Vd" />
+        <watch expression="len(traj[:, 1])" />
+        <watch expression="r" />
+        <watch expression="len(traj_all)" />
+      </configuration>
+    </watches-manager>
   </component>
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/PID.py" />
@@ -371,8 +452,38 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Land/interface.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="7650">
+        <state relative-caret-position="322">
           <caret line="450" selection-start-line="450" selection-end-line="450" />
+          <folding>
+            <element signature="e#0#11#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Algorithm/Simulator.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Algorithm/PurePursuit.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="191">
+          <caret line="185" column="30" selection-start-line="185" selection-start-column="30" selection-end-line="185" selection-end-column="30" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Algorithm/PID.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="289">
+          <caret line="33" lean-forward="true" selection-start-line="33" selection-end-line="33" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Algorithm/DWA.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1639">
+          <caret line="337" column="49" lean-forward="true" selection-start-line="337" selection-start-column="49" selection-end-line="337" selection-end-column="49" />
           <folding>
             <element signature="e#0#11#0" expanded="true" />
           </folding>
@@ -381,18 +492,18 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Algorithm/DynamicWindow.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="259">
-          <caret line="148" lean-forward="true" selection-start-line="148" selection-end-line="148" />
+        <state relative-caret-position="68">
+          <caret line="150" selection-start-line="150" selection-end-line="152" selection-end-column="15" />
           <folding>
-            <element signature="e#0#18#0" expanded="true" />
+            <element signature="e#110#129#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/Land/interface2.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1293">
-          <caret line="555" lean-forward="true" selection-start-line="555" selection-end-line="555" />
+        <state relative-caret-position="221">
+          <caret line="551" lean-forward="true" selection-start-line="551" selection-end-line="551" />
           <folding>
             <element signature="e#0#10#0" expanded="true" />
           </folding>
@@ -401,20 +512,10 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Algorithm/DWA_new.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-305">
-          <caret line="50" column="55" lean-forward="true" selection-start-line="50" selection-start-column="55" selection-end-line="50" selection-end-column="55" />
+        <state relative-caret-position="-2777">
+          <caret line="21" column="19" selection-start-line="21" selection-start-column="19" selection-end-line="21" selection-end-column="19" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Algorithm/DWA.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="102">
-          <caret line="153" lean-forward="true" selection-start-line="153" selection-end-line="153" />
-          <folding>
-            <element signature="e#0#11#0" expanded="true" />
           </folding>
         </state>
       </provider>

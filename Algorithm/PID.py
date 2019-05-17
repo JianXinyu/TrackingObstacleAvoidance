@@ -19,8 +19,8 @@ class PID():
 
         error = setpoint - input
 
-        error = error + 2*pi if error<-pi else error
-        error = error - 2*pi if error>pi else error
+        # error = error + 2*pi if error<-pi else error
+        # error = error - 2*pi if error>pi else error
 
         dinput = (input - self.lastInput) / self.sampleTime
         dsetp = (setpoint - self.lastSetp) / self.sampleTime
