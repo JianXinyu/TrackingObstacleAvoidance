@@ -26,7 +26,7 @@ class Config:
         self.to_goal_cost_gain = 0.01  # 0.01
         self.speed_cost_gain = 0.5
         self.obstacle_cost_gain = 1.5
-        self.robot_radius = 5  # [m]
+        self.robot_radius = 3  # [m]
 
         self.left_max = 1500
         self.right_max = 1500
@@ -131,7 +131,7 @@ def uniform_spd(x, u, dt):
     return x
 
 
-def uniform_accel(state, updated_accel, dt):
+def uniform_accel(state, spd_accel, yawspd_accel, dt):
     # 认为船只有纵向速度
     u0 = state[SPD]
     phi0 = state[YAW]
@@ -139,8 +139,8 @@ def uniform_accel(state, updated_accel, dt):
     U0 = u0 * cos(phi0)
     V0 = u0 * sin(phi0)
 
-    state[SPD] += updated_accel['du_max'] * dt  # TODO 减速情况咋办?
-    state[YAWSPD] += updated_accel['dr_max'] * dt
+    state[SPD] += spd_accel * dt
+    state[YAWSPD] += yawspd_accel * dt
     u = state[SPD]
     r = state[YAWSPD]
     state[YAW] += (r + r0) * dt / 2  # 更新后的艏向角
@@ -188,11 +188,13 @@ def calc_trajectory(init_state, v, y, config, updated_accel):
     state = np.array(init_state)
     trajectory = np.array(state)
     predicted_time = 0
+    spd_accel = (v - state[SPD]) / config.dT
+    yawspd_accel = (y - state[YAWSPD]) / config.dT
     while predicted_time <= config.predict_time:
-        # if predicted_time <= config.dT:  # 匀加速段
-        #     state = uniform_accel(state, updated_accel, config.dt)
-        # else:   # 匀速段
-        state = uniform_spd(state, [v, y], config.dt)
+        if predicted_time <= config.dT:  # 匀加速段
+            state = uniform_accel(state, spd_accel, yawspd_accel, config.dt)
+        else:   # 匀速段
+            state = uniform_spd(state, [v, y], config.dt)
         trajectory = np.vstack((trajectory, state))  # 记录当前及所有预测的点
         predicted_time += config.dt
 
@@ -396,13 +398,14 @@ def main():
         if show_animation:
             plt.cla()
             plt.plot(ltraj[:, 0], ltraj[:, 1], color="red", linewidth=1)
+            # 显示所有候选轨迹
             # for point in range(len(traj_all)):
             #     plt.plot(traj_all[point][:, 0], traj_all[point][:, 1], color="green", linewidth=0.2)
             plt.plot(state[POSX], state[POSY], "xr")
             plt.plot(goal[0], goal[1], "xb")
             plt.plot(ob[:, 0], ob[:, 1], "ok")
 
-            circle1 = plt.Circle((ob[2, 0], ob[2, 1]), 5, color='blue', Fill=False)
+            circle1 = plt.Circle((ob[2, 0], ob[2, 1]), 3, color='blue', Fill=False)
             ax = plt.gca()
             ax.add_artist(circle1)
 
