@@ -94,7 +94,7 @@ def update_accel(u, r, config):
     right = config.right_max / 60
     du_max = (-6.7 * u0 ** 2 + 15.9 * r0 ** 2 + 0.01205 * (left ** 2 + right ** 2) - 0.0644 * (
         u0 * (left + right) + 0.45 * r0 * (left - right)) + 58 * r0 * v0) / 33.3  # 认为螺旋桨转速最高时加速度最大
-    du_min = -6.7 * u0 ** 2 + 15.9 * r0 ** 2 + 58 * r0 * v0  # 认为螺旋桨不转时减速度最大
+    du_min = -6.7 * u0 ** 2  + 15.9 * r0 ** 2 + 58 * r0 * v0  # 认为螺旋桨不转时减速度最大
     # dv = (-29.5 * v0 + 11.8 * r0 - 33.3 * r0 * u0) / 58
     left = 1000 / 60  # 认为只有一边螺旋桨转速最高时角加速度最大, 为贴近实际, 减小转速最大值
     right = 0
@@ -167,7 +167,7 @@ def calc_dynamic_window(x, config, updated_accel):
 
     # Dynamic window from motion model
     # 根据当前速度以及加速度限制计算的动态窗口, 依次为：最小速度 最大速度 最小角速度 最大角速度
-    Vd = [max(0, x[3] + updated_accel['du_min'] * config.dT),  # TODO du_min, du_max的符号
+    Vd = [0, # max(0, x[3] + updated_accel['du_min'] * config.dT),  # TODO du_min, du_max的符号
           x[3] + updated_accel['du_max'] * config.dT,
           x[4] - updated_accel['dr_max'] * config.dT,
           x[4] + updated_accel['dr_max'] * config.dT]
@@ -226,7 +226,7 @@ def calc_final_input(x, u, dw, config, goal, ob, updated_accel):
                 min_cost = final_cost
                 min_u = [v, y]
                 best_traj = traj
-    print('goal_cost', to_goal_cost, 'speed_cost', speed_cost, 'obstacle_cost', ob_cost)
+    # print('goal_cost', to_goal_cost, 'speed_cost', speed_cost, 'obstacle_cost', ob_cost)
     print(dw)
     # print('min_u', min_u, 'best_traj', best_traj)
     return min_u, best_traj, traj_all
@@ -242,8 +242,8 @@ def calc_obstacle_cost(traj, ob, config):
 
     for ii in range(0, len(traj[:, 1]), skip_n):
         for i in range(len(ob)):
-            ox = ob[i][0] + ii * config.dt * ob[i][2] * cos(pi/4)  # 按障碍物匀速直线假设
-            oy = ob[i][1] + ii * config.dt * ob[i][2] * sin(pi/4)
+            ox = ob[i][0] + ii * config.dt * ob[i][2] * cos(ob[i][3])  # 按障碍物匀速直线假设
+            oy = ob[i][1] + ii * config.dt * ob[i][2] * sin(ob[i][3])
             dx = traj[ii][0] - ox
             dy = traj[ii][1] - oy
 
@@ -313,21 +313,23 @@ baseline = [600, 900, 1200]
 
 def main():
     print(__file__ + " start!!")
+    fakedata = np.loadtxt('fakedata1.txt')
     # initial state [x(m), y(m), yaw(rad), v(m/s), omega(rad/s)]
-    init_state = np.array([0.0, 0.0, 45 * pi / 180, 0.0, 0.0])
+    init_state = np.array([-20.0, -30.0, 45 * pi / 180, 0.0, 0.0])
     # goal position [x(m), y(m)]
-    goal = np.array([35.0, 50.0])
+    goal = np.array([-40.0, -20.0])
     # obstacles [x(m) y(m), ....]
-    ob = np.array([[20.0, 20.0, 0.2],
-                   [10.0, 20.0, 0.1],
-                   [20.0, 30.0, 0],
-                   [30.0, 30.0, -0.8],
-                   [30.0, 25.0, 0.4],
-                   [40.0, 15.0, 0.6]
-                   ])
-    # ob = np.array([[10.0, 10.0],
-    #                [20, 10]
+    # ob = np.array([[20.0, 20.0, 0.2],
+    #                [10.0, 20.0, 0.1],
+    #                [20.0, 30.0, 0],
+    #                [30.0, 30.0, -0.8],
+    #                [30.0, 25.0, 0.4],
+    #                [40.0, 15.0, 0.6]
     #                ])
+    ob = np.array([[-20.0, 0.0, 0.0, 0.0],
+                   [-10.0, 0.0, 0.1, 0.0],
+                   [-20.0, 0.0, 0, 0.0],
+                   ])
     u = np.array([0.0, 0.0])
     config = Config()
     traj = np.array(init_state)
@@ -340,22 +342,20 @@ def main():
     for i in range(1000):
         start = time.perf_counter()
         # 虚拟动态障碍物
-        # ob[2, 0] -= 0.03
-        # ob[2,1] += 0.005
         # ob[0, 0] -= 0.01
-        # ob[3,1] += 0.005
-        ob[0, 0] -= 0.01
-        ob[0, 1] -= 0.01
-        ob[1, 0] -= 0.005
-        ob[1, 1] += 0.005
-        ob[3, 0] -= 0.04
-        ob[3, 1] -= 0.04
-        ob[4, 0] += 0.02
-        ob[4, 1] += 0.02
-        ob[5, 0] -= 0.03
-        ob[5, 1] += 0.03
-        goal[0] -= 0.01
-        goal[1] += 0.0
+        # ob[0, 1] -= 0.01
+        ob[0, :] = fakedata[i+1000, :]
+        ob[2, :] = fakedata[i, :]
+        # ob[1, 0] -= 0.005
+        # ob[1, 1] += 0.005
+        # ob[3, 0] -= 0.04
+        # ob[3, 1] -= 0.04
+        # ob[4, 0] += 0.02
+        # ob[4, 1] += 0.02
+        # ob[5, 0] -= 0.03
+        # ob[5, 1] += 0.03
+        goal[0] = fakedata[i+2000, 0]
+        goal[1] = fakedata[i+2000, 1]
 
         u, ltraj, traj_all = dynamic_window(state, u, config, goal, ob)
 
@@ -406,9 +406,12 @@ def main():
             plt.plot(ob[:, 0], ob[:, 1], "ok")
 
             circle1 = plt.Circle((ob[2, 0], ob[2, 1]), 3, color='blue', Fill=False)
+            circle2 = plt.Circle((ob[1, 0], ob[1, 1]), 3, color='blue', Fill=False)
+            circle3 = plt.Circle((ob[0, 0], ob[0, 1]), 3, color='blue', Fill=False)
             ax = plt.gca()
             ax.add_artist(circle1)
-
+            ax.add_artist(circle2)
+            ax.add_artist(circle3)
             plot_arrow(state[POSX], state[POSY], state[YAW])
             plt.axis("equal")
             plt.grid(True)

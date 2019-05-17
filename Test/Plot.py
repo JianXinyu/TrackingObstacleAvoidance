@@ -11,24 +11,30 @@ import pandas as pd
 
 if __name__ =="__main__":
 
-    data = np.loadtxt('log-05-05-16-44.txt', skiprows=1, usecols=(1, 2, 9, 10), delimiter=',')
-    plt.cla()
-    ax = plt.gca()
-    x_self = data[:, 0]
-    y_self = data[:, 1]
-    x_target = data[:, 2]
-    y_target = data[:, 3]
-    # df = pd.DataFrame({'y': y_self, 'x': x_self})
-    # df.plot(x='y')
-    ax.xaxis.set_ticks_position('top')  # 将x轴的位置设置在上边
-    ax.invert_xaxis()  # x轴反向
-    ax.yaxis.set_ticks_position('right')  # 将y轴的位置设置在右边
-    ax.invert_yaxis()
-#    plt.plot(y_self, x_self, color="red")
-#    plt.plot(y_target, x_target, color="green")
-    plt.scatter(y_self, x_self, s=1, color="red")
-    plt.scatter(y_target, x_target, s=1, color="green")
-    # plt.axis("equal")
-    # pl.xticks(rotation=90) 标签
-    plt.grid(True)
-    plt.show()
+    data = np.loadtxt('log-05-05-16-44.txt', skiprows=1, usecols=(1, 2, 5, 8, 9, 10, 13, 16), delimiter=',')  # 380 - 1050 跟踪部分
+#     plt.cla()
+#     ax = plt.gca()
+#     x_self = data[:, 0]
+#     y_self = data[:, 1]
+#
+#     x_target = data[:, 2]
+#     y_target = data[:, 3]
+#     # df = pd.DataFrame({'y': y_self, 'x': x_self})
+#     # df.plot(x='y')
+#     ax.xaxis.set_ticks_position('top')  # 将x轴的位置设置在上边
+#     ax.invert_xaxis()  # x轴反向
+#     ax.yaxis.set_ticks_position('right')  # 将y轴的位置设置在右边
+#     ax.invert_yaxis()
+# #    plt.plot(y_self, x_self, color="red")
+# #    plt.plot(y_target, x_target, color="green")
+#     plt.scatter(y_self, x_self, s=1, color="red")
+#     # for i in range(len(data[:, 0])):
+#     #     plt.text(y_self[i], x_self[i], i)
+#     plt.scatter(y_target, x_target, s=1, color="green")
+#     for i in range(len(data[:, 0])):
+#         plt.text(y_target[i], x_target[i], i, fontsize=5)
+#     plt.grid(True)
+#     plt.show()
+
+    np.savetxt("fakedata1.txt", data[:, 2:6])
+    np.savetxt("fakedata2.txt", data[:, 2:6])
