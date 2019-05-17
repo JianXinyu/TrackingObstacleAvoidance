@@ -12,6 +12,10 @@ import pandas as pd
 if __name__ =="__main__":
 
     data = np.loadtxt('log-05-05-16-44.txt', skiprows=1, usecols=(1, 2, 5, 8, 9, 10, 13, 16), delimiter=',')  # 380 - 1050 跟踪部分
+    # x = filter(lambda x: x != 0, data[:, 0])
+    data = [data[i, :] for i in range(len(data)) if data[i, 0] != 0]
+    data = np.array(data)
+    # print(np.shape(data))
 #     plt.cla()
 #     ax = plt.gca()
 #     x_self = data[:, 0]
@@ -36,5 +40,5 @@ if __name__ =="__main__":
 #     plt.grid(True)
 #     plt.show()
 
-    np.savetxt("fakedata1.txt", data[:, 2:6])
-    np.savetxt("fakedata2.txt", data[:, 2:6])
+    np.savetxt("fakedata1.txt", data[:, 4:8])
+    np.savetxt("fakedata2.txt", data[:, 0:4])

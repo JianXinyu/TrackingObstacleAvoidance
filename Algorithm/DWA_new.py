@@ -4,7 +4,7 @@ from PID import PID
 from math import cos, sin, pi, atan2
 import time
 import math
-
+import random
 
 # simulation parameters
 class Config:
@@ -314,6 +314,8 @@ baseline = [600, 900, 1200]
 def main():
     print(__file__ + " start!!")
     fakedata = np.loadtxt('fakedata1.txt')
+    fakedata2 = np.loadtxt('fakedata2.txt')
+
     # initial state [x(m), y(m), yaw(rad), v(m/s), omega(rad/s)]
     init_state = np.array([-20.0, -30.0, 45 * pi / 180, 0.0, 0.0])
     # goal position [x(m), y(m)]
@@ -339,12 +341,19 @@ def main():
     pid_yawspd = PID(kp=5000, ki=10.0, kd=0, minout=-1200, maxout=1200, sampleTime=0.1)
     state = init_state
     init_time = time.perf_counter()
+
+    # 对输入数据加入gauss噪声
+    # 定义gauss噪声的均值和方差
+    mu = 0
+    sigma = 0.0036
+
     for i in range(1000):
         start = time.perf_counter()
         # 虚拟动态障碍物
         # ob[0, 0] -= 0.01
         # ob[0, 1] -= 0.01
-        ob[0, :] = fakedata[i+1000, :]
+        ob[0, :] = fakedata[i+1000, :] + [random.gauss(mu, sigma), random.gauss(mu, sigma), 0, 0]
+        ob[1, :] = fakedata2[i+300, :]
         ob[2, :] = fakedata[i, :]
         # ob[1, 0] -= 0.005
         # ob[1, 1] += 0.005
@@ -389,6 +398,10 @@ def main():
         print('left', left, 'right', right)
 
         state = trimaran_model(state, left, right, 0.5)
+        # 加入过程噪声, 高斯分布, 均值为0
+        state += [random.gauss(0, 0.01), random.gauss(0, 0.01),  # POSX, POSY
+                  random.gauss(0, 0.01), random.gauss(0, 0.01),  # Yaw (rad), Speed (m/s)
+                  random.gauss(0, 0.005)]                        # yaw speed (rad/s)
         # state = uniform_spd(state, u, 0.1)
         # print(traj)
 
