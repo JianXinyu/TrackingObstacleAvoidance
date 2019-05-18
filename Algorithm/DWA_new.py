@@ -137,7 +137,7 @@ class DWA(object):
                 state = self.uniform_accel(state, spd_accel, yawspd_accel, self.config.dt)
             else:  # 匀速段
                 state = self.uniform_spd(state, [v, y], self.config.dt)
-            trajectory.append(state)  # 记录当前及所有预测的点
+            trajectory.append(state.copy())  # 记录当前及所有预测的点
             predicted_time += self.config.dt
         return trajectory
 
@@ -233,8 +233,8 @@ def pure_pursuit(self, target):
     return target_angle, dist
 
 
-show_animation = False
-show_result = False
+show_animation = True
+show_result = True
 baseline = [600, 900, 1200]
 
 
