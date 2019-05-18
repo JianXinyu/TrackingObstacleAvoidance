@@ -2,7 +2,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 
-from PID import PID
+from algorithm.pid import PID
 from math import cos, sin, pi
 from numpy.random import normal
 import time

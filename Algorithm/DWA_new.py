@@ -1,10 +1,22 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from PID import PID
+from algorithm.pid import PID
 from math import cos, sin, pi, atan2
 import time
 import math
 import random
+from algorithm.simulator import trimaran_model, decode_state, encode_state
+from algorithm.utils import plot_arrow
+
+
+# 下标宏定义
+# state [x(m), y(m), yaw(rad), v(m/s), yaw spd(rad/s)]
+POSX = 0
+POSY = 1
+YAW = 2
+SPD = 3
+YAWSPD = 4
+
 
 # simulation parameters
 class Config:
@@ -32,271 +44,215 @@ class Config:
         self.right_max = 1500
 
 
-# 注意适用范围: left, right 0~1000 rpm
-# left, right都为正表示前进
-def trimaran_model(state, left, right, dt):
-    # X0 = state['x']  # 北东系x坐标 [m]
-    # Y0 = state['y']  # 北东系y坐标 [m]
-    # U0 = state['U']  # x方向速度(大地坐标系) [m/s]
-    # V0 = state['V']  # y方向速度(大地坐标系) [m/s]
-    # phi0 = state['yaw']  # 艏向角，即船头与正北的夹角，范围为0~2PI [rad]
-    # r0 = state['yaw_spd']  # 艏向角速度 [rad/s]
-    X0 = state[POSX]
-    Y0 = state[POSY]
-    U0 = state[SPD] * cos(state[YAW]) # 认为艏向就是速度方向, 船的横向速度为0
-    V0 = state[SPD] * sin(state[YAW])
-    phi0 = state[YAW]
-    r0 = state[YAWSPD]
+class DWA(object):
 
-    left = left / 60  # 船舶左桨转速 [rps]
-    right = right / 60  # 船舶右桨转速 [rps]
+    def __init__(self, config):
+        self.config = config
 
-    u0 = V0 * sin(phi0) + U0 * cos(phi0)  # 转为随船坐标系, i.e. 船纵向速度
-    v0 = V0 * cos(phi0) - U0 * sin(phi0)  # 船横向速度
+    def update(self, state, acc_list, goal, ob):
+    # def dynamic_window(x, u, config, goal, ob):
+        # Dynamic Window control
 
-    du = (-6.7 * u0 ** 2 + 15.9 * r0 ** 2 + 0.01205 * (left ** 2 + right ** 2) - 0.0644 * (
-        u0 * (left + right) + 0.45 * r0 * (left - right)) + 58 * r0 * v0) / 33.3
-    dv = (-29.5 * v0 + 11.8 * r0 - 33.3 * r0 * u0) / 58
-    dr = (-0.17 * v0 - 2.74 * r0 - 4.78 * r0 * abs(r0) + 0.45 * (
-        0.01205 * (left ** 2 - right ** 2) - 0.0644 * (
-            u0 * (left - right) + 0.45 * r0 * (left + right)))) / 6.1
+        # 根据当前速度u, 角速度r计算最大加速度
+        updated_accel = self.update_accel(state[3], state[4])
 
-    u = u0 + du * dt
-    v = v0 + dv * dt
+        dw = self.calc_dynamic_window(state, updated_accel)
 
-    r = r0 + dr * dt    # 更新后的转艏角速度
-    phi = phi0 + (r + r0) * dt / 2  # 更新后的艏向角
-    phi = phi % (2 * pi)
-    U = u * cos(phi) - v * sin(phi)  # 更新后的速度, 转为大地坐标系
-    V = u * sin(phi) + v * cos(phi)
-    state[POSX] = X0 + (U0 + U) * dt / 2   # 更新后的坐标
-    state[POSY] = Y0 + (V0 + V) * dt / 2
-    state[YAW] = phi
-    state[SPD] = math.sqrt(U ** 2 + V ** 2)
-    state[YAWSPD] = r
+        u, traj = self.calc_final_input(state, acc_list, dw, goal, ob)
 
-    # return {
-    #     'x': X,
-    #     'y': Y,
-    #     'U': U,
-    #     'V': V,
-    #     'yaw': phi,
-    #     'yaw_spd': r
-    # }
-    return state
+        return u, traj
 
+    def calc_final_input(self, x, u, dw, goal, ob):
+        xinit = x[:]
+        min_cost = 10000.0
+        min_u = u
+        min_u[0] = 0.0
+        best_traj = np.array([x])
+        # traj_all = []
+        i = 0
+        # evaluate all trajectory with sampled input in dynamic window
+        for v in np.arange(dw[0], dw[1], self.config.v_reso):
+            for y in np.arange(dw[2], dw[3], self.config.yawrate_reso):
+                traj = self.calc_trajectory(xinit, v, y)
+                # traj_all[i] = np.array(traj)
+                i += 1
+                # traj = calc_trajectory(xinit, v, y, self.config)
+                # calc cost
+                final_cost = self._get_cost(traj, goal, ob)
+                # search minimum trajectory
+                if min_cost >= final_cost:
+                    min_cost = final_cost
+                    min_u = [v, y]
+                    best_traj = traj
+        print(dw)
+        # print('min_u', min_u, 'best_traj', best_traj)
+        return min_u, best_traj
 
-def update_accel(u, r, config):
-    u0 = u
-    v0 = 0  # 假定船横向速度恒为0
-    r0 = r
-    left = config.left_max / 60
-    right = config.right_max / 60
-    du_max = (-6.7 * u0 ** 2 + 15.9 * r0 ** 2 + 0.01205 * (left ** 2 + right ** 2) - 0.0644 * (
-        u0 * (left + right) + 0.45 * r0 * (left - right)) + 58 * r0 * v0) / 33.3  # 认为螺旋桨转速最高时加速度最大
-    du_min = -6.7 * u0 ** 2  + 15.9 * r0 ** 2 + 58 * r0 * v0  # 认为螺旋桨不转时减速度最大
-    # dv = (-29.5 * v0 + 11.8 * r0 - 33.3 * r0 * u0) / 58
-    left = 1000 / 60  # 认为只有一边螺旋桨转速最高时角加速度最大, 为贴近实际, 减小转速最大值
-    right = 0
-    dr_max = (-0.17 * v0 - 2.74 * r0 - 4.78 * r0 * abs(r0) + 0.45 * (
-        0.01205 * (left ** 2 - right ** 2) - 0.0644 * (
-            u0 * (left - right) + 0.45 * r0 * (left + right)))) / 6.1
-    return {
-        'du_max': du_max,
-        'du_min': du_min,
-        'dr_max': abs(dr_max)
-    }
+    def uniform_accel(self, state, spd_accel, yawspd_accel, dt):
+        # 认为船只有纵向速度
+        # u0 = state[SPD]
+        # phi0 = state[YAW]
+        # r0 = state[YAWSPD]
 
+        posx, posy, phi0, u0, r0 = decode_state(state)
 
-# 下标宏定义
-# state [x(m), y(m), yaw(rad), v(m/s), yaw spd(rad/s)]
-POSX = 0
-POSY = 1
-YAW = 2
-SPD = 3
-YAWSPD = 4
+        U0 = u0 * cos(phi0)
+        V0 = u0 * sin(phi0)
 
+        # u0 = u0 + spd_accel * dt
+        # r0 += yawspd_accel * dt
 
-# motion model TODO 改为圆弧模型
-# x(m), y(m), yaw(rad), v(m/s), yaw spd(rad/s)
-# u[0] v, u[1] yaw spd
-def uniform_spd(x, u, dt):
+        # state[SPD] += spd_accel * dt
+        # state[YAWSPD] += yawspd_accel * dt
+        new_u = u0 + spd_accel * dt
+        new_r = r0 + yawspd_accel * dt
 
-    x[2] += u[1] * dt
-    x[0] += u[0] * cos(x[2]) * dt
-    x[1] += u[0] * sin(x[2]) * dt
-    x[3] = u[0]
-    x[4] = u[1]
+        new_phi = phi0 + (new_r + r0) * dt / 2  # 更新后的艏向角
+        new_phi = new_phi % (2 * pi)
+        # state[YAW] += (r + r0) * dt / 2  # 更新后的艏向角
 
-    return x
+        # state[YAW] = state[YAW] % (2 * pi)
 
+        # phi = state[YAW]
+        new_U = new_u * cos(new_phi)  # 更新后的速度, 转为大地坐标系
+        new_V = new_u * sin(new_phi)
 
-def uniform_accel(state, spd_accel, yawspd_accel, dt):
-    # 认为船只有纵向速度
-    u0 = state[SPD]
-    phi0 = state[YAW]
-    r0 = state[YAWSPD]
-    U0 = u0 * cos(phi0)
-    V0 = u0 * sin(phi0)
+        new_posx = posx + (U0 + new_U) * dt / 2  # 更新后的坐标
+        new_posy = posy + (V0 + new_V) * dt / 2
 
-    state[SPD] += spd_accel * dt
-    state[YAWSPD] += yawspd_accel * dt
-    u = state[SPD]
-    r = state[YAWSPD]
-    state[YAW] += (r + r0) * dt / 2  # 更新后的艏向角
-    state[YAW] = state[YAW] % (2 * pi)
-    phi = state[YAW]
-    U = u * cos(phi)  # 更新后的速度, 转为大地坐标系
-    V = u * sin(phi)
-    state[POSX] += (U0 + U) * dt / 2   # 更新后的坐标
-    state[POSY] += (V0 + V) * dt / 2
+        # state[POSX] += (U0 + U) * dt / 2   # 更新后的坐标
+        # state[POSY] += (V0 + V) * dt / 2
+        state = encode_state(new_posx, new_posy, new_phi, new_u, new_r)
+        return state
 
-    return state
+    # motion model TODO 改为圆弧模型
+    # x(m), y(m), yaw(rad), v(m/s), yaw spd(rad/s)
+    # u[0] v, u[1] yaw spd
+    def uniform_spd(self, x, u, dt):
+        x[2] += u[1] * dt
+        x[0] += u[0] * cos(x[2]) * dt
+        x[1] += u[0] * sin(x[2]) * dt
+        x[3] = u[0]
+        x[4] = u[1]
 
+        return x
 
-# 动态窗口计算
-def calc_dynamic_window(x, config, updated_accel):
+    # 轨迹推演函数
+    # 动态窗口法假定运载器的线速度和角速度在给定的规划时域保持不变，
+    # 因此规划时域内运载器的局部轨迹只能是直线（r=0）或是圆弧（r≠0），
+    # 可以通过(u,r)值确定
+    # 但为了考虑操纵性, 加入了达到目标状态的匀加速轨迹
+    def calc_trajectory(self, state, v, y):
+        state = np.array(state)
+        trajectory = np.array(state)
+        # trajectory = state
+        predicted_time = 0
+        spd_accel = (v - state[SPD]) / self.config.dT
+        yawspd_accel = (y - state[YAWSPD]) / self.config.dT
+        while predicted_time <= self.config.predict_time:
+            if predicted_time <= self.config.dT:  # 匀加速段
+                state = self.uniform_accel(state, spd_accel, yawspd_accel, self.config.dt)
+            else:  # 匀速段
+                state = self.uniform_spd(state, [v, y], self.config.dt)
+            trajectory = np.vstack((trajectory, state))  # 记录当前及所有预测的点
+            # trajectory.append(state)
+            predicted_time += self.config.dt
+        return trajectory
 
-    # Dynamic window from kinematic configure
-    # 船舶有能力达到的速度范围
-    Vs = [config.min_speed, config.max_speed,
-          -config.max_yawrate, config.max_yawrate]
+    def _get_cost(self, traj, goal, ob):
+        to_goal_cost = self.calc_to_goal_cost(traj[-1], goal, self.config)
+        speed_cost = self.config.speed_cost_gain * (self.config.max_speed - traj[-1][3])
+        ob_cost = self.config.obstacle_cost_gain * self.calc_obstacle_cost(traj, ob)
+        final_cost = to_goal_cost + speed_cost + ob_cost
+        print('goal_cost', to_goal_cost, 'speed_cost', speed_cost, 'obstacle_cost', ob_cost)
+        return final_cost
 
-    # 环境障碍物约束， 要求能在碰到障碍物之前停下来
-    # Va = (2*du_min*min_dist)**.5
+    def calc_dynamic_window(self, state, updated_accel):
+        # Dynamic window from kinematic self.configure
+        # 船舶有能力达到的速度范围
 
-    # Dynamic window from motion model
-    # 根据当前速度以及加速度限制计算的动态窗口, 依次为：最小速度 最大速度 最小角速度 最大角速度
-    Vd = [0, # max(0, x[3] + updated_accel['du_min'] * config.dT),  # TODO du_min, du_max的符号
-          x[3] + updated_accel['du_max'] * config.dT,
-          x[4] - updated_accel['dr_max'] * config.dT,
-          x[4] + updated_accel['dr_max'] * config.dT]
+        Vs = [self.config.min_speed, self.config.max_speed,
+              -self.config.max_yawrate, self.config.max_yawrate]
 
-    #  [vmin, vmax, yawrate min, yawrate max]
-    dw = [max(Vs[0], Vd[0]), min(Vs[1], Vd[1]),  # Va),
-          max(Vs[2], Vd[2]), min(Vs[3], Vd[3])]
+        # 环境障碍物约束， 要求能在碰到障碍物之前停下来
+        # Va = (2*du_min*min_dist)**.5
 
-    return dw
+        # Dynamic window from motion model
+        # 根据当前速度以及加速度限制计算的动态窗口, 依次为：最小速度 最大速度 最小角速度 最大角速度
+        Vd = [0, #max(0, state[3] + updated_accel['du_min'] * self.config.dT),  # TODO du_min, du_max的符号
+              state[3] + updated_accel['du_max'] * self.config.dT,
+              state[4] - updated_accel['dr_max'] * self.config.dT,
+              state[4] + updated_accel['dr_max'] * self.config.dT]
 
+        #  [vmin, vmax, yawrate min, yawrate max]
+        dw = [max(Vs[0], Vd[0]), min(Vs[1], Vd[1]),  # Va),
+              max(Vs[2], Vd[2]), min(Vs[3], Vd[3])]
 
-# 轨迹推演函数
-# 动态窗口法假定运载器的线速度和角速度在给定的规划时域保持不变，
-# 因此规划时域内运载器的局部轨迹只能是直线（r=0）或是圆弧（r≠0），
-# 可以通过(u,r)值确定
-# 但为了考虑操纵性, 加入了达到目标状态的匀加速轨迹
-def calc_trajectory(init_state, v, y, config, updated_accel):
-    state = np.array(init_state)
-    trajectory = np.array(state)
-    predicted_time = 0
-    spd_accel = (v - state[SPD]) / config.dT
-    yawspd_accel = (y - state[YAWSPD]) / config.dT
-    while predicted_time <= config.predict_time:
-        if predicted_time <= config.dT:  # 匀加速段
-            state = uniform_accel(state, spd_accel, yawspd_accel, config.dt)
-        else:   # 匀速段
-            state = uniform_spd(state, [v, y], config.dt)
-        trajectory = np.vstack((trajectory, state))  # 记录当前及所有预测的点
-        predicted_time += config.dt
+        return dw
 
-    return trajectory
+    def update_accel(self, accel, r_accel):
+        u0 = accel
+        v0 = 0  # 假定船横向速度恒为0
+        r0 = r_accel
+        left = self.config.left_max / 60
+        right = self.config.right_max / 60
+        du_max = (-6.7 * u0 ** 2 + 15.9 * r0 ** 2 + 0.01205 * (left ** 2 + right ** 2) - 0.0644 * (
+            u0 * (left + right) + 0.45 * r0 * (left - right)) + 58 * r0 * v0) / 33.3  # 认为螺旋桨转速最高时加速度最大
+        du_min = -6.7 * u0 ** 2 + 15.9 * r0 ** 2 + 58 * r0 * v0  # 认为螺旋桨不转时减速度最大
+        # dv = (-29.5 * v0 + 11.8 * r0 - 33.3 * r0 * u0) / 58
+        left = 1000 / 60  # 认为只有一边螺旋桨转速最高时角加速度最大, 为贴近实际, 减小转速最大值
+        right = 0
+        dr_max = (-0.17 * v0 - 2.74 * r0 - 4.78 * r0 * abs(r0) + 0.45 * (
+            0.01205 * (left ** 2 - right ** 2) - 0.0644 * (
+                u0 * (left - right) + 0.45 * r0 * (left + right)))) / 6.1
+        return {
+            'du_max': du_max,
+            'du_min': du_min,
+            'dr_max': abs(dr_max)
+        }
 
+    def calc_obstacle_cost(self, traj, ob):
+        # calc obstacle cost inf: collistion, 0:free
 
-def calc_final_input(x, u, dw, config, goal, ob, updated_accel):
-    xinit = x[:]
-    min_cost = 10000.0
-    min_u = u
-    min_u[0] = 0.0
-    best_traj = np.array([x])
-    traj_all = {}
-    i = 0
-    # evaluate all trajectory with sampled input in dynamic window
-    for v in np.arange(dw[0], dw[1], config.v_reso):
-        for y in np.arange(dw[2], dw[3], config.yawrate_reso):
-            traj = calc_trajectory(xinit, v, y, config, updated_accel)
-            traj_all[i] = np.array(traj)
-            i += 1
-            # traj = calc_trajectory(xinit, v, y, config)
-            # calc cost
-            to_goal_cost = calc_to_goal_cost(traj, goal, config)
-            speed_cost = config.speed_cost_gain * (config.max_speed - traj[-1, 3])
-            ob_cost = config.obstacle_cost_gain * calc_obstacle_cost(traj, ob, config)
-            final_cost = to_goal_cost + speed_cost + ob_cost
-            # search minimum trajectory
-            if min_cost >= final_cost:
-                min_cost = final_cost
-                min_u = [v, y]
-                best_traj = traj
-    # print('goal_cost', to_goal_cost, 'speed_cost', speed_cost, 'obstacle_cost', ob_cost)
-    print(dw)
-    # print('min_u', min_u, 'best_traj', best_traj)
-    return min_u, best_traj, traj_all
+        skip_n = 2  # 每隔一个点计算一次, 加速
+        minr = float("inf")
 
+        for ii in range(0, len(traj[:, 1]), skip_n):
+            for i in range(len(ob)):
+                ox = ob[i][0] + ii * self.config.dt * ob[i][2] * cos(pi / 4)  # 按障碍物匀速直线假设
+                oy = ob[i][1] + ii * self.config.dt * ob[i][2] * sin(pi / 4)
+                dx = traj[ii][0] - ox
+                dy = traj[ii][1] - oy
 
-# 当前预测的所有轨迹点 距离所有障碍物中 的最小距离, 越小损失越大
-# 注意障碍物是在移动的, 应考虑时间
-def calc_obstacle_cost(traj, ob, config):
-    # calc obstacle cost inf: collistion, 0:free
+                r = math.sqrt(dx ** 2 + dy ** 2)
+                if r <= self.config.robot_radius:
+                    return float("Inf")  # collision
 
-    skip_n = 2  # 每隔一个点计算一次, 加速
-    minr = float("inf")
+                if minr >= r:
+                    minr = r
 
-    for ii in range(0, len(traj[:, 1]), skip_n):
-        for i in range(len(ob)):
-            ox = ob[i][0] + ii * config.dt * ob[i][2] * cos(ob[i][3])  # 按障碍物匀速直线假设
-            oy = ob[i][1] + ii * config.dt * ob[i][2] * sin(ob[i][3])
-            dx = traj[ii][0] - ox
-            dy = traj[ii][1] - oy
+        return 1.0 / minr  # OK
 
-            r = math.sqrt(dx ** 2 + dy ** 2)
-            if r <= config.robot_radius:
-                return float("Inf")  # collision
+    def calc_to_goal_cost(self, last_point, goal, config):
+        # calc to goal cost. It is 2D norm.
 
-            if minr >= r:
-                minr = r
+        # 1. 本船, 目标与坐标系零点连线的夹角, 越大损失越大
+        # goal_magnitude = math.sqrt(goal[0] ** 2 + goal[1] ** 2)
+        # traj_magnitude = math.sqrt(traj[-1, 0] ** 2 + traj[-1, 1] ** 2)
+        # dot_product = (goal[0] * traj[-1, 0]) + (goal[1] * traj[-1, 1])
+        # error = dot_product / (goal_magnitude * traj_magnitude)
+        # error_angle = math.acos(error)
+        # cost = config.to_goal_cost_gain * error_angle
 
-    return 1.0 / minr  # OK
+        # 2. 本船的艏向和本船与目标连线的夹角, 越大损失越大. 取预测轨迹的最后一个点
+        # dist = math.sqrt((goal[0]-traj[-1, 0])**2 + (goal[1]-traj[-1, 1])**2)
+        # angle = math.sin((goal[1] - traj[-1, 1]) / dist)
+        # cost = config.to_goal_cost_gain * abs(angle - traj[-1, 2])
 
-
-# 目标损失函数
-def calc_to_goal_cost(traj, goal, config):
-    # calc to goal cost. It is 2D norm.
-
-    # 1. 本船, 目标与坐标系零点连线的夹角, 越大损失越大
-    # goal_magnitude = math.sqrt(goal[0] ** 2 + goal[1] ** 2)
-    # traj_magnitude = math.sqrt(traj[-1, 0] ** 2 + traj[-1, 1] ** 2)
-    # dot_product = (goal[0] * traj[-1, 0]) + (goal[1] * traj[-1, 1])
-    # error = dot_product / (goal_magnitude * traj_magnitude)
-    # error_angle = math.acos(error)
-    # cost = config.to_goal_cost_gain * error_angle
-
-    # 2. 本船的艏向和本船与目标连线的夹角, 越大损失越大. 取预测轨迹的最后一个点
-    # dist = math.sqrt((goal[0]-traj[-1, 0])**2 + (goal[1]-traj[-1, 1])**2)
-    # angle = math.sin((goal[1] - traj[-1, 1]) / dist)
-    # cost = config.to_goal_cost_gain * abs(angle - traj[-1, 2])
-
-    # 3. 本船和目标的距离
-    dist = math.sqrt((goal[0]-traj[-1, 0])**2 + (goal[1]-traj[-1, 1])**2)
-    cost = config.to_goal_cost_gain * dist
-    return cost
-
-
-def dynamic_window(x, u, config, goal, ob):
-    # Dynamic Window control
-
-    # 根据当前速度u, 角速度r计算最大加速度
-    updated_accel = update_accel(x[3], x[4], config)
-
-    dw = calc_dynamic_window(x, config, updated_accel)
-
-    u, traj, traj_all = calc_final_input(x, u, dw, config, goal, ob, updated_accel)
-
-    return u, traj, traj_all
-
-
-def plot_arrow(x, y, yaw, length=5, width=0.1):  # pragma: no cover
-    plt.arrow(x, y, length * math.cos(yaw), length * math.sin(yaw),
-              head_length=width, head_width=width)
-    plt.plot(x, y)
+        # 3. 本船和目标的距离
+        dist = math.sqrt((goal[0] - last_point[0]) ** 2 + (goal[1] - last_point[1]) ** 2)
+        cost = config.to_goal_cost_gain * dist
+        return cost
 
 
 def pure_pursuit(self, target):
@@ -334,8 +290,9 @@ def main():
                    ])
     u = np.array([0.0, 0.0])
     config = Config()
-    traj = np.array(init_state)
-
+    dynamic_window = DWA(config)
+    # traj = np.array(init_state)
+    traj = [init_state]
     pid_yaw = PID(kp=300, ki=3, kd=10, minout=-1200, maxout=1200, sampleTime=0.1)
     pid_spd = PID(kp=3000.0, ki=100.0, kd=0, minout=0, maxout=2000, sampleTime=0.1)
     pid_yawspd = PID(kp=5000, ki=10.0, kd=0, minout=-1200, maxout=1200, sampleTime=0.1)
@@ -366,8 +323,8 @@ def main():
         goal[0] = fakedata[i+2000, 0]
         goal[1] = fakedata[i+2000, 1]
 
-        u, ltraj, traj_all = dynamic_window(state, u, config, goal, ob)
-
+        # u, ltraj, traj_all = dynamic_window.update(state, u, goal, ob)
+        u, ltraj = dynamic_window.update(state, u, goal, ob)
         traj = np.vstack((traj, state))  # store state history
 
         target_point = ltraj[len(ltraj) // 3]

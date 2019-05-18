@@ -2,7 +2,7 @@
 Mobile robot motion planning sample with Dynamic Window Approach
 author: Atsushi Sakai (@Atsushi_twi)
 """
-from PID import PID
+from algorithm.pid import PID
 import math
 import numpy as np
 import matplotlib.pyplot as plt
