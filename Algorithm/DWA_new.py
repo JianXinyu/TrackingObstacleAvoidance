@@ -1,13 +1,14 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from algorithm.pid import PID
-from math import cos, sin, pi, atan2
-import time
 import math
 import random
+import time
+from math import cos, sin, pi, atan2
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+from algorithm.pid import PID
 from algorithm.simulator import trimaran_model, decode_state, encode_state
 from algorithm.utils import plot_arrow
-
 
 # 下标宏定义
 # state [x(m), y(m), yaw(rad), v(m/s), yaw spd(rad/s)]
@@ -20,7 +21,6 @@ YAWSPD = 4
 
 # simulation parameters
 class Config:
-
     def __init__(self):
         # robot parameter
         self.max_speed = 1.0  # 最大航速[m/s]
@@ -45,12 +45,11 @@ class Config:
 
 
 class DWA(object):
-
     def __init__(self, config):
         self.config = config
 
     def update(self, state, acc_list, goal, ob):
-    # def dynamic_window(x, u, config, goal, ob):
+        # def dynamic_window(x, u, config, goal, ob):
         # Dynamic Window control
 
         # 根据当前速度u, 角速度r计算最大加速度
@@ -179,7 +178,7 @@ class DWA(object):
 
         # Dynamic window from motion model
         # 根据当前速度以及加速度限制计算的动态窗口, 依次为：最小速度 最大速度 最小角速度 最大角速度
-        Vd = [0, #max(0, state[3] + updated_accel['du_min'] * self.config.dT),  # TODO du_min, du_max的符号
+        Vd = [0,  # max(0, state[3] + updated_accel['du_min'] * self.config.dT),  # TODO du_min, du_max的符号
               state[3] + updated_accel['du_max'] * self.config.dT,
               state[4] - updated_accel['dr_max'] * self.config.dT,
               state[4] + updated_accel['dr_max'] * self.config.dT]
@@ -309,8 +308,8 @@ def main():
         # 虚拟动态障碍物
         # ob[0, 0] -= 0.01
         # ob[0, 1] -= 0.01
-        ob[0, :] = fakedata[i+1000, :] + [random.gauss(mu, sigma), random.gauss(mu, sigma), 0, 0]
-        ob[1, :] = fakedata2[i+300, :]
+        ob[0, :] = fakedata[i + 1000, :] + [random.gauss(mu, sigma), random.gauss(mu, sigma), 0, 0]
+        ob[1, :] = fakedata2[i + 300, :]
         ob[2, :] = fakedata[i, :]
         # ob[1, 0] -= 0.005
         # ob[1, 1] += 0.005
@@ -320,8 +319,8 @@ def main():
         # ob[4, 1] += 0.02
         # ob[5, 0] -= 0.03
         # ob[5, 1] += 0.03
-        goal[0] = fakedata[i+2000, 0]
-        goal[1] = fakedata[i+2000, 1]
+        goal[0] = fakedata[i + 2000, 0]
+        goal[1] = fakedata[i + 2000, 1]
 
         # u, ltraj, traj_all = dynamic_window.update(state, u, goal, ob)
         u, ltraj = dynamic_window.update(state, u, goal, ob)
@@ -345,11 +344,14 @@ def main():
         average = pid_spd.compute(state[SPD], u[0])
         diff = pid_yawspd.compute(state[YAWSPD], u[1])
         # print('output', output, 'ideal_angle', target_angle, 'real_angle', state[YAW])
-        print('real_spd', round(state[SPD],2), 'target_spd', round(u[0],2), 'output', round(average,2), 'forward', round(average_forward,2))
-        print('real_yawspd', round(state[YAWSPD],2), 'target_yawspd', round(u[1],2), 'output', round(diff,2), 'forward', round(diff_forward,2))
+        print('real_spd', round(state[SPD], 2), 'target_spd', round(u[0], 2), 'output', round(average, 2), 'forward',
+              round(average_forward, 2))
+        print('real_yawspd', round(state[YAWSPD], 2), 'target_yawspd', round(u[1], 2), 'output', round(diff, 2),
+              'forward', round(diff_forward, 2))
         average = 0 if abs(average) < 5 else average
         diff = 0 if abs(diff) < 5 else diff
-        left, right = average + average_forward + (diff + diff_forward) / 2, average+average_forward - (diff + diff_forward) / 2
+        left, right = average + average_forward + (diff + diff_forward) / 2, average + average_forward - (
+        diff + diff_forward) / 2
         left = max(min(left, 1500), 0)
         right = max(min(right, 1500), 0)
         print('left', left, 'right', right)
@@ -358,7 +360,7 @@ def main():
         # 加入过程噪声, 高斯分布, 均值为0
         state += [random.gauss(0, 0.01), random.gauss(0, 0.01),  # POSX, POSY
                   random.gauss(0, 0.01), random.gauss(0, 0.01),  # Yaw (rad), Speed (m/s)
-                  random.gauss(0, 0.005)]                        # yaw speed (rad/s)
+                  random.gauss(0, 0.005)]  # yaw speed (rad/s)
         # state = uniform_spd(state, u, 0.1)
         # print(traj)
 
@@ -390,7 +392,7 @@ def main():
         print("Plot Time used:", elapsedd)
         print("overall time: ", time.perf_counter() - init_time)
         # check goal
-        if math.sqrt((state[POSX] - goal[0])**2 + (state[POSY] - goal[1])**2) <= config.robot_radius:
+        if math.sqrt((state[POSX] - goal[0]) ** 2 + (state[POSY] - goal[1]) ** 2) <= config.robot_radius:
             print("Goal!!")
             break
 
@@ -401,6 +403,7 @@ def main():
         plt.pause(0.0001)
 
     plt.show()
+
 
 if __name__ == '__main__':
     main()

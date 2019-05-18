@@ -1,9 +1,4 @@
-from time import time
-from math import pi
-
-
-class PID():
-
+class PID(object):
     def __init__(self, kp, ki, kd, minout, maxout, sampleTime=0.1):
         self.kp = kp
         self.ki = ki
@@ -16,7 +11,6 @@ class PID():
         self.min = minout
 
     def compute(self, input, setpoint):
-
         error = setpoint - input
 
         # error = error + 2*pi if error<-pi else error
@@ -35,7 +29,6 @@ class PID():
         self.lastInput = input
         self.lastSetp = setpoint
         return output
-
 
     def clear(self):
         self.integral = 0
