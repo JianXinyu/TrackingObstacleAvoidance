@@ -5,9 +5,9 @@ from math import cos, sin, pi, atan2
 
 import numpy as np
 
-from algorithm.pid import PID
-from algorithm.simulator import trimaran_model, decode_state, encode_state, apply_noise
-from algorithm.utils import plot, POSX, POSY, SPD, YAWSPD, plot_traj
+from Algorithm.PID import PID
+from Algorithm.Simulator import trimaran_model, decode_state, encode_state, apply_noise
+from Algorithm.utils import plot, POSX, POSY, SPD, YAWSPD, plot_traj
 
 info_format = \
 "Step {i} Info:\n\
@@ -26,12 +26,12 @@ class Config:
         self.max_speed = 1.0  # 最大航速[m/s]
         self.min_speed = 0  # 最大倒车速度[m/s]
         self.max_yawrate = 0.6  # 最大转艏角速度[rad/s]
-        self.max_accel = 0.45  # [m/ss] TODO min_accel
-        self.max_dyawrate = 0.5  # 40.0 * math.pi / 180.0  # [rad/ss]
+        # self.max_accel = 0.45  # [m/ss]
+        # self.max_dyawrate = 0.5  # 40.0 * math.pi / 180.0  # [rad/ss]
         self.v_reso = 0.1  # [m/s]
         self.yawrate_reso = 6 * pi / 180.0  # [rad/s]
 
-        self.dT = 1  # 动态窗口时间[s]
+        self.dT = 1.0  # 动态窗口时间[s]
         self.dt = 0.1  # 轨迹推演时间步长[s]
         self.predict_time = 10.0  # 轨迹推演总时间[s]
 
@@ -55,7 +55,25 @@ class DWA(object):
         du_max, dr_max = self.update_accel(state[3], state[4])
         dw = self.calc_dynamic_window(state, du_max, dr_max)
         u, traj = self.calc_final_input(state, acc_list, dw, goal, ob)
+        # u, traj, traj_all = self.calc_final_input(state, acc_list, dw, goal, ob, du_max, dr_max)
         return u, traj
+
+    def update_accel(self, accel, r_accel):
+        u0 = accel
+        v0 = 0  # 假定船横向速度恒为0
+        r0 = r_accel
+        left = self.config.left_max / 60
+        right = self.config.right_max / 60
+        du_max = (-6.7 * u0 ** 2 + 15.9 * r0 ** 2 + 0.01205 * (left ** 2 + right ** 2) - 0.0644 * (
+            u0 * (left + right) + 0.45 * r0 * (left - right)) + 58 * r0 * v0) / 33.3  # 认为螺旋桨转速最高时加速度最大
+        # du_min = -6.7 * u0 ** 2 + 15.9 * r0 ** 2 + 58 * r0 * v0  # 认为螺旋桨不转时减速度最大
+        # dv = (-29.5 * v0 + 11.8 * r0 - 33.3 * r0 * u0) / 58
+        left = 1000 / 60  # 认为只有一边螺旋桨转速最高时角加速度最大, 为贴近实际, 减小转速最大值
+        right = 0
+        dr_max = (-0.17 * v0 - 2.74 * r0 - 4.78 * r0 * abs(r0) + 0.45 * (
+            0.01205 * (left ** 2 - right ** 2) - 0.0644 * (
+                u0 * (left - right) + 0.45 * r0 * (left + right)))) / 6.1
+        return du_max, abs(dr_max)
 
     def update_ob_trajectory(self, ob_list, length=0):
         if len(self._ob_trajectory) == 0:
@@ -64,8 +82,8 @@ class DWA(object):
             for _ in range(len(self._ob_trajectory), length):
                 last_data = self._ob_trajectory[-1].copy()
                 for ob_id, ob in enumerate(ob_list):
-                    last_data[ob_id][0] += self.config.dt * ob[2] * cos(pi / 4)
-                    last_data[ob_id][1] += self.config.dt * ob[2] * sin(pi / 4)
+                    last_data[ob_id][0] += self.config.dt * ob[2] * cos(ob[3])
+                    last_data[ob_id][1] += self.config.dt * ob[2] * sin(ob[3])
                 self._ob_trajectory.append(last_data)
 
     def calc_final_input(self, x, u, dw, goal, ob):
@@ -74,12 +92,15 @@ class DWA(object):
         min_u = u
         min_u[0] = 0.0
         best_traj = [x]
-
+        # traj_all = {}
+        # i = 0
         self._ob_trajectory.clear()
         # evaluate all trajectory with sampled input in dynamic window
         for v in np.arange(dw[0], dw[1], self.config.v_reso):
             for y in np.arange(dw[2], dw[3], self.config.yawrate_reso):
                 traj = self.calc_trajectory(xinit, v, y)
+                # traj_all[i] = np.array(traj)
+                # i += 1
                 self.update_ob_trajectory(ob, len(traj))
                 final_cost = self._get_cost(traj, goal, ob)
                 if min_cost >= final_cost:
@@ -87,7 +108,7 @@ class DWA(object):
                     min_u = [v, y]
                     best_traj = traj
         # print(dw)
-        return min_u, best_traj
+        return min_u, best_traj,  # traj_all
 
     def uniform_accel(self, state, spd_accel, yawspd_accel, dt):
         posx, posy, phi0, u0, r0 = decode_state(state)
@@ -110,7 +131,7 @@ class DWA(object):
         state = encode_state(new_posx, new_posy, new_phi, new_u, new_r)
         return state
 
-    # motion model TODO 改为圆弧模型
+    # motion model
     # x(m), y(m), yaw(rad), v(m/s), yaw spd(rad/s)
     # u[0] v, u[1] yaw spd
     def uniform_spd(self, x, u, dt):
@@ -121,6 +142,29 @@ class DWA(object):
         x[4] = u[1]
 
         return x
+
+    def calc_dynamic_window(self, state, du_max, dr_max):
+        # Dynamic window from kinematic self.configure
+        # 船舶有能力达到的速度范围
+
+        Vs = [self.config.min_speed, self.config.max_speed,
+              -self.config.max_yawrate, self.config.max_yawrate]
+
+        # 环境障碍物约束， 要求能在碰到障碍物之前停下来
+        # Va = (2*du_min*min_dist)**.5
+
+        # Dynamic window from motion model
+        # 根据当前速度以及加速度限制计算的动态窗口, 依次为：最小速度 最大速度 最小角速度 最大角速度
+        Vd = [0,  # max(0, state[3] + updated_accel['du_min'] * self.config.dT),  # TODO du_min, du_max的符号
+              state[3] + du_max * self.config.dT,
+              state[4] - dr_max * self.config.dT,
+              state[4] + dr_max * self.config.dT]
+
+        #  [vmin, vmax, yawrate min, yawrate max]
+        dw = [max(Vs[0], Vd[0]), min(Vs[1], Vd[1]),  # Va),
+              max(Vs[2], Vd[2]), min(Vs[3], Vd[3])]
+
+        return dw
 
     # 轨迹推演函数
     # 动态窗口法假定运载器的线速度和角速度在给定的规划时域保持不变，
@@ -149,46 +193,6 @@ class DWA(object):
         # print('goal_cost', to_goal_cost, 'speed_cost', speed_cost, 'obstacle_cost', ob_cost)
         return final_cost
 
-    def calc_dynamic_window(self, state, du_max, dr_max):
-        # Dynamic window from kinematic self.configure
-        # 船舶有能力达到的速度范围
-
-        Vs = [self.config.min_speed, self.config.max_speed,
-              -self.config.max_yawrate, self.config.max_yawrate]
-
-        # 环境障碍物约束， 要求能在碰到障碍物之前停下来
-        # Va = (2*du_min*min_dist)**.5
-
-        # Dynamic window from motion model
-        # 根据当前速度以及加速度限制计算的动态窗口, 依次为：最小速度 最大速度 最小角速度 最大角速度
-        Vd = [0,  # max(0, state[3] + updated_accel['du_min'] * self.config.dT),  # TODO du_min, du_max的符号
-              state[3] + du_max * self.config.dT,
-              state[4] - dr_max * self.config.dT,
-              state[4] + dr_max * self.config.dT]
-
-        #  [vmin, vmax, yawrate min, yawrate max]
-        dw = [max(Vs[0], Vd[0]), min(Vs[1], Vd[1]),  # Va),
-              max(Vs[2], Vd[2]), min(Vs[3], Vd[3])]
-
-        return dw
-
-    def update_accel(self, accel, r_accel):
-        u0 = accel
-        v0 = 0  # 假定船横向速度恒为0
-        r0 = r_accel
-        left = self.config.left_max / 60
-        right = self.config.right_max / 60
-        du_max = (-6.7 * u0 ** 2 + 15.9 * r0 ** 2 + 0.01205 * (left ** 2 + right ** 2) - 0.0644 * (
-            u0 * (left + right) + 0.45 * r0 * (left - right)) + 58 * r0 * v0) / 33.3  # 认为螺旋桨转速最高时加速度最大
-        # du_min = -6.7 * u0 ** 2 + 15.9 * r0 ** 2 + 58 * r0 * v0  # 认为螺旋桨不转时减速度最大
-        # dv = (-29.5 * v0 + 11.8 * r0 - 33.3 * r0 * u0) / 58
-        left = 1000 / 60  # 认为只有一边螺旋桨转速最高时角加速度最大, 为贴近实际, 减小转速最大值
-        right = 0
-        dr_max = (-0.17 * v0 - 2.74 * r0 - 4.78 * r0 * abs(r0) + 0.45 * (
-            0.01205 * (left ** 2 - right ** 2) - 0.0644 * (
-                u0 * (left - right) + 0.45 * r0 * (left + right)))) / 6.1
-        return du_max, abs(dr_max)
-
     def calc_obstacle_cost(self, traj, ob):
         # calc obstacle cost inf: collistion, 0:free
 
@@ -200,7 +204,7 @@ class DWA(object):
                 r = (traj[step][0] - ob[0]) ** 2 + (traj[step][1] - ob[1]) ** 2
                 if r <= self.config.robot_radius_square:
                     return float("Inf")
-                minr = min(minr, r)
+                minr = min(minr, math.sqrt(r))  # TODO 这里不能改为平方
         return 1.0 / minr  # OK
 
     def calc_to_goal_cost(self, last_point, goal, config):
@@ -242,7 +246,7 @@ def main():
     print(__file__ + " start!!")
     fakedata = np.loadtxt('fakedata1.txt')
     fakedata2 = np.loadtxt('fakedata2.txt')
-
+    fakedata3 = np.loadtxt('fakedata3.txt')
     # initial state [x(m), y(m), yaw(rad), v(m/s), omega(rad/s)]
     init_state = np.array([-20.0, -30.0, 45 * pi / 180, 0.0, 0.0])
     # goal position [x(m), y(m)]
@@ -250,14 +254,16 @@ def main():
     # obstacles [x(m) y(m), ....]
     ob = np.array([[-20.0, 0.0, 0.0, 0.0],
                    [-10.0, 0.0, 0.1, 0.0],
-                   [-20.0, 0.0, 0, 0.0],
+                   [-20.0, 0.0, 0.0, 0.0],
+                   [-30.0, 0.0, 0.0, 0.0],
+                   [-30.0, 0.0, 0.0, 0.0]
                    ])
     u = np.array([0.0, 0.0])
     config = Config()
     dynamic_window = DWA(config)
     # traj = np.array(init_state)
     traj = [init_state]
-    ltraj = None
+    best_traj = None
     pid_yaw = PID(kp=300, ki=3, kd=10, minout=-1200, maxout=1200, sampleTime=0.1)
     pid_spd = PID(kp=3000.0, ki=100.0, kd=0, minout=0, maxout=2000, sampleTime=0.1)
     pid_yawspd = PID(kp=5000, ki=10.0, kd=0, minout=-1200, maxout=1200, sampleTime=0.1)
@@ -271,14 +277,21 @@ def main():
 
     for i in range(1000):
         # 虚拟动态障碍物
-        ob[0, :] = fakedata[i + 1000, :] + [random.gauss(mu, sigma), random.gauss(mu, sigma), 0, 0]
-        ob[1, :] = fakedata2[i + 300, :]
-        ob[2, :] = fakedata[i, :]
-        goal[0] = fakedata[i + 2000, 0]
-        goal[1] = fakedata[i + 2000, 1]
+        start = time.perf_counter()
+        ob[0, :] = fakedata[i + 1000, :] + [random.gauss(mu, sigma), random.gauss(mu, sigma), random.gauss(mu, sigma),
+                                            random.gauss(mu, sigma)]
+        ob[1, :] = fakedata[i, :] + [random.gauss(mu, sigma), random.gauss(mu, sigma), random.gauss(mu, sigma),
+                                     random.gauss(mu, sigma)]
+        ob[2, :] = fakedata2[i + 300, :] + [random.gauss(mu, sigma), random.gauss(mu, sigma), random.gauss(mu, sigma),
+                                            random.gauss(mu, sigma)]
+        ob[3, :] = fakedata2[i + 1300, :] + [random.gauss(mu, sigma), random.gauss(mu, sigma), random.gauss(mu, sigma),
+                                             random.gauss(mu, sigma)]
+        ob[4, :] = fakedata3[i, :] + [random.gauss(mu, sigma), random.gauss(mu, sigma), random.gauss(mu, sigma),
+                                     random.gauss(mu, sigma)]
+        goal[0] = fakedata3[i + 1000, 0] + random.gauss(mu, sigma)
+        goal[1] = fakedata3[i + 1000, 1] + random.gauss(mu, sigma)
 
-        # TODO(@JianXinyu) what does ltraj means?
-        u, ltraj = dynamic_window.update(state, u, goal, ob)
+        u, best_traj = dynamic_window.update(state, u, goal, ob)
         # traj = np.vstack((traj, state))  # store state history
 
         # target_point = ltraj[len(ltraj) // 3]
@@ -308,12 +321,12 @@ def main():
             right=right,
             output_diff=diff
         ))
-
-        state = trimaran_model(state, left, right, 0.5)
+        print(time.perf_counter()-start)
+        state = trimaran_model(state, left, right, 0.1)
         state = apply_noise(state)
 
         if show_animation:
-            plot(ltraj, state, goal, ob)
+            plot(best_traj, state, goal, ob)
         if show_result or show_animation:
             traj.append(state.copy())
 
@@ -324,7 +337,7 @@ def main():
     print("Done")
     print("Overall time: ", time.perf_counter() - init_time)
     if show_result or show_animation:
-        plot(ltraj, state, goal, ob)
+        plot(best_traj, state, goal, ob)
         plot_traj(traj)
 
 

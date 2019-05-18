@@ -23,17 +23,16 @@ def plot(ltraj, state, goal, ob):
     plt.plot(goal[0], goal[1], "xb")
     plt.plot(ob[:, 0], ob[:, 1], "ok")
 
-    circle1 = plt.Circle((ob[2, 0], ob[2, 1]), 3, color='blue', Fill=False)
-    circle2 = plt.Circle((ob[1, 0], ob[1, 1]), 3, color='blue', Fill=False)
-    circle3 = plt.Circle((ob[0, 0], ob[0, 1]), 3, color='blue', Fill=False)
     ax = plt.gca()
-    ax.add_artist(circle1)
-    ax.add_artist(circle2)
-    ax.add_artist(circle3)
+    for i in range(len(ob)):
+        circle = plt.Circle((ob[i, 0], ob[i, 1]), 3, color='blue', Fill=False, label=i)
+        ax.add_artist(circle)
+
     plot_arrow(state[POSX], state[POSY], state[YAW])
     plt.axis("equal")
     plt.grid(True)
     plt.pause(0.0001)
+
 
 def plot_traj(traj):
     plt.scatter([s[0] for s in traj], [s[1] for s in traj], c='r', s=1)
