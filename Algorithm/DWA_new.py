@@ -14,7 +14,6 @@ info_format = \
 SPD:\t real {real_spd:.2f} | target {target_spd:.2f}\n\
 YAWSPD:\t real {real_yawspd:.2f} | target {target_yawspd:.2f}\n\
 Average Output:\t\t{average_output:.2f}\n\
-Average Forward:\t{average_forward:.2f}\n\
 Output Difference:\t{output_diff:.2f}\n\
 Motor:\tleft {left:.2f} | right {right:.2f}\n\
 ==================="
@@ -75,17 +74,6 @@ class DWA(object):
                 u0 * (left - right) + 0.45 * r0 * (left + right)))) / 6.1
         return du_max, abs(dr_max)
 
-    def update_ob_trajectory(self, ob_list, length=0):
-        if len(self._ob_trajectory) == 0:
-            self._ob_trajectory.append([[ob[0], ob[1]] for ob in ob_list])
-        if len(self._ob_trajectory) < length:
-            for _ in range(len(self._ob_trajectory), length):
-                last_data = self._ob_trajectory[-1].copy()
-                for ob_id, ob in enumerate(ob_list):
-                    last_data[ob_id][0] += self.config.dt * ob[2] * cos(ob[3])
-                    last_data[ob_id][1] += self.config.dt * ob[2] * sin(ob[3])
-                self._ob_trajectory.append(last_data)
-
     def calc_final_input(self, x, u, dw, goal, ob):
         xinit = x[:]
         min_cost = 10000.0
@@ -107,7 +95,8 @@ class DWA(object):
                     min_cost = final_cost
                     min_u = [v, y]
                     best_traj = traj
-        # print(dw)
+        print(dw)
+        print(best_traj)
         return min_u, best_traj,  # traj_all
 
     def uniform_accel(self, state, spd_accel, yawspd_accel, dt):
@@ -155,7 +144,7 @@ class DWA(object):
 
         # Dynamic window from motion model
         # 根据当前速度以及加速度限制计算的动态窗口, 依次为：最小速度 最大速度 最小角速度 最大角速度
-        Vd = [0,  # max(0, state[3] + updated_accel['du_min'] * self.config.dT),  # TODO du_min, du_max的符号
+        Vd = [0,  # max(0, state[3] + updated_accel['du_min'] * self.config.dT),
               state[3] + du_max * self.config.dT,
               state[4] - dr_max * self.config.dT,
               state[4] + dr_max * self.config.dT]
@@ -190,7 +179,7 @@ class DWA(object):
         speed_cost = self.config.speed_cost_gain * (self.config.max_speed - traj[-1][3])
         ob_cost = self.config.obstacle_cost_gain * self.calc_obstacle_cost(traj, ob)
         final_cost = to_goal_cost + speed_cost + ob_cost
-        # print('goal_cost', to_goal_cost, 'speed_cost', speed_cost, 'obstacle_cost', ob_cost)
+        print('goal_cost', to_goal_cost, 'speed_cost', speed_cost, 'obstacle_cost', ob_cost)
         return final_cost
 
     def calc_obstacle_cost(self, traj, ob):
@@ -206,6 +195,17 @@ class DWA(object):
                     return float("Inf")
                 minr = min(minr, math.sqrt(r))  # TODO 这里不能改为平方
         return 1.0 / minr  # OK
+
+    def update_ob_trajectory(self, ob_list, length=0):
+        if len(self._ob_trajectory) == 0:
+            self._ob_trajectory.append([[ob[0], ob[1]] for ob in ob_list])
+        if len(self._ob_trajectory) < length:
+            for _ in range(len(self._ob_trajectory), length):
+                last_data = self._ob_trajectory[-1].copy()
+                for ob_id, ob in enumerate(ob_list):
+                    last_data[ob_id][0] += self.config.dt * ob[2] * cos(ob[3])
+                    last_data[ob_id][1] += self.config.dt * ob[2] * sin(ob[3])
+                self._ob_trajectory.append(last_data)
 
     def calc_to_goal_cost(self, last_point, goal, config):
         # calc to goal cost. It is 2D norm.
@@ -248,9 +248,9 @@ def main():
     fakedata2 = np.loadtxt('fakedata2.txt')
     fakedata3 = np.loadtxt('fakedata3.txt')
     # initial state [x(m), y(m), yaw(rad), v(m/s), omega(rad/s)]
-    init_state = np.array([-20.0, -30.0, 45 * pi / 180, 0.0, 0.0])
+    init_state = np.array([-40.0, -30.0, 45 * pi / 180, 0.0, 0.0])
     # goal position [x(m), y(m)]
-    goal = np.array([-40.0, -20.0])
+    goal = np.array([0.0, 0.0])
     # obstacles [x(m) y(m), ....]
     ob = np.array([[-20.0, 0.0, 0.0, 0.0],
                    [-10.0, 0.0, 0.1, 0.0],
@@ -330,7 +330,8 @@ def main():
         if show_result or show_animation:
             traj.append(state.copy())
 
-        if ((state[POSX] - goal[0]) ** 2 + (state[POSY] - goal[1])) ** 2 <= config.robot_radius_square:
+        to_goal_dist_square = (state[POSX] - goal[0]) ** 2 + (state[POSY] - goal[1]) ** 2
+        if to_goal_dist_square <= config.robot_radius_square:
             print("Goal!!")
             break
 
