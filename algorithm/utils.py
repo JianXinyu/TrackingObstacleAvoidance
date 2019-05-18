@@ -1,7 +1,43 @@
 import math
 import matplotlib.pyplot as plt
 
+POSX = 0
+POSY = 1
+YAW = 2
+SPD = 3
+YAWSPD = 4
+
 def plot_arrow(x, y, yaw, length=5, width=0.1):  # pragma: no cover
     plt.arrow(x, y, length * math.cos(yaw), length * math.sin(yaw),
               head_length=width, head_width=width)
     plt.plot(x, y)
+
+
+def plot(ltraj, state, goal, ob):
+    plt.cla()
+    if ltraj:
+        data_x = [s[0] for s in ltraj]
+        data_y = [s[1] for s in ltraj]
+        plt.plot(data_x, data_y, color="red", linewidth=1)
+    plt.plot(state[POSX], state[POSY], "xr")
+    plt.plot(goal[0], goal[1], "xb")
+    plt.plot(ob[:, 0], ob[:, 1], "ok")
+
+    circle1 = plt.Circle((ob[2, 0], ob[2, 1]), 3, color='blue', Fill=False)
+    circle2 = plt.Circle((ob[1, 0], ob[1, 1]), 3, color='blue', Fill=False)
+    circle3 = plt.Circle((ob[0, 0], ob[0, 1]), 3, color='blue', Fill=False)
+    ax = plt.gca()
+    ax.add_artist(circle1)
+    ax.add_artist(circle2)
+    ax.add_artist(circle3)
+    plot_arrow(state[POSX], state[POSY], state[YAW])
+    plt.axis("equal")
+    plt.grid(True)
+    plt.pause(0.0001)
+
+def plot_traj(traj):
+    plt.scatter([s[0] for s in traj], [s[1] for s in traj], c='r', s=1)
+    plt.axis("equal")
+    plt.grid(True)
+    plt.pause(0.0001)
+    plt.show()

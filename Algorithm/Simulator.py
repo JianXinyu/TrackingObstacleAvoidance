@@ -1,4 +1,4 @@
-
+import random
 from math import cos, sin, pi, sqrt
 
 # 下标宏定义
@@ -9,9 +9,11 @@ YAW = 2
 SPD = 3
 YAWSPD = 4
 
+
 def encode_state(*state):
-    assert len(state)==5
+    assert len(state) == 5
     return list(state)
+
 
 def decode_state(state):
     return state[POSX], state[POSY], state[YAW], state[SPD], state[YAWSPD]
@@ -28,7 +30,7 @@ def trimaran_model(state, left, right, dt):
     # r0 = state['yaw_spd']  # 艏向角速度 [rad/s]
     X0 = state[POSX]
     Y0 = state[POSY]
-    U0 = state[SPD] * cos(state[YAW]) # 认为艏向就是速度方向, 船的横向速度为0
+    U0 = state[SPD] * cos(state[YAW])  # 认为艏向就是速度方向, 船的横向速度为0
     V0 = state[SPD] * sin(state[YAW])
     phi0 = state[YAW]
     r0 = state[YAWSPD]
@@ -49,14 +51,23 @@ def trimaran_model(state, left, right, dt):
     u = u0 + du * dt
     v = v0 + dv * dt
 
-    r = r0 + dr * dt    # 更新后的转艏角速度
+    r = r0 + dr * dt  # 更新后的转艏角速度
     phi = phi0 + (r + r0) * dt / 2  # 更新后的艏向角
     phi = phi % (2 * pi)
     U = u * cos(phi) - v * sin(phi)  # 更新后的速度, 转为大地坐标系
     V = u * sin(phi) + v * cos(phi)
-    state[POSX] = X0 + (U0 + U) * dt / 2   # 更新后的坐标
+    state[POSX] = X0 + (U0 + U) * dt / 2  # 更新后的坐标
     state[POSY] = Y0 + (V0 + V) * dt / 2
     state[YAW] = phi
     state[SPD] = sqrt(U ** 2 + V ** 2)
     state[YAWSPD] = r
+    return state
+
+
+def apply_noise(state):
+    noise = [random.gauss(0, 0.01), random.gauss(0, 0.01),  # POSX, POSY
+             random.gauss(0, 0.01), random.gauss(0, 0.01),  # Yaw (rad), Speed (m/s)
+             random.gauss(0, 0.005)]
+    for i in range(5):
+        state[i] += noise[i]
     return state
