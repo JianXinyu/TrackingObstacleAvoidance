@@ -61,7 +61,7 @@ def painter(data, file_name):  # 绘图并保存至指定路径的函数
 
 if __name__ =="__main__":
 
-    root = "D:\\GraduationProject\\data"
+    root = "D:\\GraduationProject\\data"  # FIXME 我完全就不存在这份文件，我怎么运行？如下所有新代码都是没有运行过的，不保证work。
 
     # ret = []
     # find_txt(root, ret)
@@ -75,17 +75,21 @@ if __name__ =="__main__":
     data = np.loadtxt('%s\\log-05-05-17-21.txt' % root, skiprows=1, usecols=(1, 2, 5, 8, 9, 10, 13, 16), delimiter=',') # 0.5s的间隔
 
     # 除去零值
-    data_de0 = [data[i, :] for i in range(len(data)) if data[i, 4] != 0]
-    data_de0 = np.array(data_de0)
-    print(np.shape(data_de0))
+    mask = data[:, 4] != 0
+    data_de0 = data[mask]
+    print(data_de0.shape)
 
     # 数据填充
-    data_fill = np.zeros((5*(len(data_de0)-1), 8))
-    for i in range(len(data_de0)-1):
-        cnt = 5 * i
-        diff = (data_de0[i+1] - data_de0[i]) / 5
-        for ii in range(5):
-            data_fill[cnt+ii] = data_de0[i] + diff * ii
+    def interpolate(inp, multiplier=5):
+        expanded_shape = [multiplier * (inp.shape[0] - 1) + 1, *inp.shape[1:]]
+        out = np.empty(expanded_shape)
+        diff = (inp[1:] - inp[:-1]) / multiplier
+        for i in range(multiplier):
+            out[i:-1:multiplier] = i * diff + inp[:-1]
+        out[-1] = inp[-1]
+        return out
+
+    data_fill = interpolate(data_de0)
 
     np.savetxt("fakedata4.txt", data_fill[:, 4:8])
     print(np.shape(data_fill))
