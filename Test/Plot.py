@@ -9,50 +9,6 @@ import pandas as pd
 # 9'target.posx', 10'target.posy', 11'target.yaw', 12'target.yaw_speed',
 #          13'target.hspeed', 14'target.stdx', 15'target.stdy', 16'target.track',
 # 17'distance', 18'left_motor', 19 'right_motor'
-#
-# def data_reader(file_path):  # 读取数据的函数
-#     time = []
-#     volt = []
-#     with open(file_path, 'r') as f:
-#         data = f.readlines()  # 自存放数据的.txt文件中读入数据
-#         data.pop()  # 文件读入后在末尾总有个'\n'，后面使用split()函数时会出错，将其去掉
-#         for i in data:
-#             t, v = i.split(' ')  # 使用split()函数将时间和数据分隔开
-#             h, m, s = t.strip('[]').split(':')  # 先处理时间，将时分秒分隔开
-#             time.append(3600 * int(h) + 60 * int(m) + float(s))  # 将时间数据转换成秒
-#             volt.append(float(v))  # 处理电压数据，将各式转为浮点型
-#     time = np.array(time) - time[0]  # 获取时间间隔
-#     volt = np.array(volt)
-#     return np.array([time, volt])  # 将易于处理的格式的数据打包输出
-#
-#
-# def painter(time, volt, aim_path):  # 绘图并保存至指定路径的函数
-#     plt.plot(time, volt, 'g-')
-#     plt.savefig(aim_path, format='png', dpi=300)
-#
-#
-# if __name__ == '__main__':
-#
-#     cwd = os.getcwd()
-#     aim = cwd + '\picture'  # 创建用于存放图片的文件夹路径
-#     os.makedirs(aim)  # 按路径创建文件夹
-#
-#     source = 'D:\\Users\\zhm\\Desktop\\水开关实验5~35\\'  # .txt文件所在文件夹
-#
-#     '''下面的两个列表用于建立文件名变量，便于自动读入数据和写入图片。组合方式举例，
-#        例如：浓度5-第1次、浓度5-第2次、浓度15-第3次... 浓度后的数字取自列表nongdu
-#        第几次中的几取自列表cishu。
-#     '''
-#     nongdu = [5, 10, 15, 20, 25, 27, 29, 31, 33, 35]
-#     cishu = [1, 2, 3]
-#
-#     for no in nongdu:
-#         for ci in cishu:  # 使用循环遍历上述组合，依次读取所有.txt文件中的内容
-#             f_name = '浓度' + str(no) + '-' + '第' + str(ci) + '次' + '.txt'
-#             f_path = source + f_name
-#             img_path = aim + '\\' + str(no) + '-' + str(ci) + '.png'
-#             data = data_reader(f_path)  # 每读取一个文件就处理数据、绘图、保存
-#             painter(data[0], data[1], img_path)
 
 
 def find_txt(path, ret):
@@ -116,10 +72,25 @@ if __name__ =="__main__":
     # data = np.loadtxt('log-05-05-16-44.txt', skiprows=1, usecols=(1, 2, 5, 8, 9, 10, 13, 16), delimiter=',')  # 380 - 1050 跟踪部分
     # data = np.loadtxt('log-05-05-16-59.txt', skiprows=1, usecols=(1, 2, 5, 8, 9, 10, 13, 16), delimiter=',')  # 不好
     # data = np.loadtxt('%s\\log-05-12-15-51.txt' % root, skiprows=1, usecols=(1, 2, 5, 8, 9, 10, 13, 16), delimiter=',')  # 0.5s的间隔
-    data = np.loadtxt('%s\\log-05-05-16-36.txt' % root, skiprows=1, usecols=(1, 2, 5, 8, 9, 10, 13, 16), delimiter=',')
+    data = np.loadtxt('%s\\log-05-05-17-21.txt' % root, skiprows=1, usecols=(1, 2, 5, 8, 9, 10, 13, 16), delimiter=',') # 0.5s的间隔
+
+    # 除去零值
     data_de0 = [data[i, :] for i in range(len(data)) if data[i, 4] != 0]
     data_de0 = np.array(data_de0)
     print(np.shape(data_de0))
+
+    # 数据填充
+    data_fill = np.zeros((5*(len(data_de0)-1), 8))
+    for i in range(len(data_de0)-1):
+        cnt = 5 * i
+        diff = (data_de0[i+1] - data_de0[i]) / 5
+        for ii in range(5):
+            data_fill[cnt+ii] = data_de0[i] + diff * ii
+
+    np.savetxt("fakedata4.txt", data_fill[:, 4:8])
+    print(np.shape(data_fill))
+    plt.scatter(data_fill[:, 4], data_fill[:, 5], color="red")
+    plt.show()
     # np.savetxt("fakedata1.txt", data[:, 4:8])
     # np.savetxt("fakedata2.txt", data[:, 0:4])
-    np.savetxt("fakedata3.txt", data_de0[:, 4:8])
+    # np.savetxt("fakedata3.txt", data_de0[:, 4:8])

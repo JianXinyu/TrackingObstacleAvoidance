@@ -14,8 +14,9 @@ info_format = \
 SPD:\t real {real_spd:.2f} | target {target_spd:.2f}\n\
 YAWSPD:\t real {real_yawspd:.2f} | target {target_yawspd:.2f}\n\
 Average Output:\t\t{average_output:.2f}\n\
-Output Difference:\t{output_diff:.2f}\n\
+Diff Output:\t{output_diff:.2f}\n\
 Motor:\tleft {left:.2f} | right {right:.2f}\n\
+Calc Time:\t {calc_time:.2f}\n\
 ==================="
 
 # simulation parameters
@@ -76,7 +77,7 @@ class DWA(object):
 
     def calc_final_input(self, x, u, dw, goal, ob):
         xinit = x[:]
-        min_cost = 10000.0
+        min_cost = 10000
         min_u = u
         min_u[0] = 0.0
         best_traj = [x]
@@ -84,8 +85,10 @@ class DWA(object):
         # i = 0
         self._ob_trajectory.clear()
         # evaluate all trajectory with sampled input in dynamic window
-        for v in np.arange(dw[0], dw[1], self.config.v_reso):
-            for y in np.arange(dw[2], dw[3], self.config.yawrate_reso):
+        v_step = (dw[1] - dw[0]) / 6
+        r_step = (dw[3] - dw[2]) / 12  # 0.1-0.2s
+        for v in np.arange(dw[0], dw[1], v_step): # self.config.v_reso):
+            for y in np.arange(dw[2], dw[3], r_step): # self.config.yawrate_reso):
                 traj = self.calc_trajectory(xinit, v, y)
                 # traj_all[i] = np.array(traj)
                 # i += 1
@@ -95,8 +98,8 @@ class DWA(object):
                     min_cost = final_cost
                     min_u = [v, y]
                     best_traj = traj
-        print(dw)
-        print(best_traj)
+        # print(dw)
+        # print(best_traj)
         return min_u, best_traj,  # traj_all
 
     def uniform_accel(self, state, spd_accel, yawspd_accel, dt):
@@ -179,7 +182,7 @@ class DWA(object):
         speed_cost = self.config.speed_cost_gain * (self.config.max_speed - traj[-1][3])
         ob_cost = self.config.obstacle_cost_gain * self.calc_obstacle_cost(traj, ob)
         final_cost = to_goal_cost + speed_cost + ob_cost
-        print('goal_cost', to_goal_cost, 'speed_cost', speed_cost, 'obstacle_cost', ob_cost)
+        # print('goal_cost', to_goal_cost, 'speed_cost', speed_cost, 'obstacle_cost', ob_cost)
         return final_cost
 
     def calc_obstacle_cost(self, traj, ob):
@@ -194,6 +197,19 @@ class DWA(object):
                 if r <= self.config.robot_radius_square:
                     return float("Inf")
                 minr = min(minr, math.sqrt(r))  # TODO 这里不能改为平方
+        # for ii in range(0, len(traj), skip_n):
+        #     for i in range(len(ob)):
+        #         ox = ob[i][0] + ii * self.config.dt * ob[i][2] * cos(ob[i][3])  # 按障碍物匀速直线假设
+        #         oy = ob[i][1] + ii * self.config.dt * ob[i][2] * sin(ob[i][3])
+        #         dx = traj[ii][0] - ox
+        #         dy = traj[ii][1] - oy
+        #
+        #         r = math.sqrt(dx ** 2 + dy ** 2)
+        #         if r <= self.config.robot_radius:
+        #             return float("Inf")  # collision
+        #
+        #         if minr >= r:
+        #             minr = r
         return 1.0 / minr  # OK
 
     def update_ob_trajectory(self, ob_list, length=0):
@@ -202,10 +218,14 @@ class DWA(object):
         if len(self._ob_trajectory) < length:
             for _ in range(len(self._ob_trajectory), length):
                 last_data = self._ob_trajectory[-1].copy()
+                new_data = []
                 for ob_id, ob in enumerate(ob_list):
-                    last_data[ob_id][0] += self.config.dt * ob[2] * cos(ob[3])
-                    last_data[ob_id][1] += self.config.dt * ob[2] * sin(ob[3])
-                self._ob_trajectory.append(last_data)
+                    new_ob = []
+                    new_ob.append(last_data[ob_id][0] + self.config.dt * ob[2] * cos(ob[3]))
+                    new_ob.append(last_data[ob_id][1] + self.config.dt * ob[2] * sin(ob[3]))
+                    new_data.append(new_ob)
+                # self._ob_trajectory.append(last_data.copy())
+                self._ob_trajectory.append(new_data)
 
     def calc_to_goal_cost(self, last_point, goal, config):
         # calc to goal cost. It is 2D norm.
@@ -276,8 +296,8 @@ def main():
     sigma = 0.0036
 
     for i in range(1000):
-        # 虚拟动态障碍物
         start = time.perf_counter()
+        # 虚拟动态障碍物
         ob[0, :] = fakedata[i + 1000, :] + [random.gauss(mu, sigma), random.gauss(mu, sigma), random.gauss(mu, sigma),
                                             random.gauss(mu, sigma)]
         ob[1, :] = fakedata[i, :] + [random.gauss(mu, sigma), random.gauss(mu, sigma), random.gauss(mu, sigma),
@@ -287,22 +307,33 @@ def main():
         ob[3, :] = fakedata2[i + 1300, :] + [random.gauss(mu, sigma), random.gauss(mu, sigma), random.gauss(mu, sigma),
                                              random.gauss(mu, sigma)]
         ob[4, :] = fakedata3[i, :] + [random.gauss(mu, sigma), random.gauss(mu, sigma), random.gauss(mu, sigma),
-                                     random.gauss(mu, sigma)]
+                                      random.gauss(mu, sigma)]
         goal[0] = fakedata3[i + 1000, 0] + random.gauss(mu, sigma)
         goal[1] = fakedata3[i + 1000, 1] + random.gauss(mu, sigma)
 
         u, best_traj = dynamic_window.update(state, u, goal, ob)
         # traj = np.vstack((traj, state))  # store state history
 
-        # target_point = ltraj[len(ltraj) // 3]
-        # real_point = state
-        # target_angle, dist = pure_pursuit(real_point, target_point)
+        # 朝着预测轨迹的某一点航行
+        target_point = best_traj[len(best_traj) // 3]
+        real_point = state
+        target_angle, dist = pure_pursuit(real_point, target_point)
+        if target_angle < 0:
+            target_angle += 2 * pi
+        if dist <= 2:
+            average = 600
+        elif dist <= 5:
+            average = 800
+        else:
+            average = 1000
+        diff = pid_yaw.compute(state[2], target_angle)
+
         average_forward = 0  # 1000 * (0.2825 * u[0]**2 + 0.3648 * u[0])
         diff_forward = 0  # 2400 * (1.8704 * u[1]**2 + 0.5533 * u[1])
-        average = pid_spd.compute(state[SPD], u[0])
-        diff = pid_yawspd.compute(state[YAWSPD], u[1])
-        
-        average = 0 if abs(average) < 5 else average
+        # average = pid_spd.compute(state[SPD], u[0])
+        # diff = pid_yawspd.compute(state[YAWSPD], u[1])
+        #
+        # average = 0 if abs(average) < 5 else average
         diff = 0 if abs(diff) < 5 else diff
         left, right = average + average_forward + (diff + diff_forward) / 2, average + average_forward - (
             diff + diff_forward) / 2
@@ -316,12 +347,11 @@ def main():
             real_yawspd=state[YAWSPD],
             target_yawspd=u[1],
             average_output=average,
-            average_forward=average_forward,
+            output_diff=diff,
             left=left,
             right=right,
-            output_diff=diff
+            calc_time=time.perf_counter()-start
         ))
-        print(time.perf_counter()-start)
         state = trimaran_model(state, left, right, 0.1)
         state = apply_noise(state)
 
