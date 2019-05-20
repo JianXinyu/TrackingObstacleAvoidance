@@ -61,7 +61,7 @@ def painter(data, file_name):  # 绘图并保存至指定路径的函数
 
 if __name__ =="__main__":
 
-    root = "D:\\GraduationProject\\data"
+    root = "D:\\GraduationProject\\data"  # FIXME 我完全就不存在这份文件，我怎么运行？如下所有新代码都是没有运行过的，不保证work。
 
     # ret = []
     # find_txt(root, ret)
@@ -87,6 +87,11 @@ if __name__ =="__main__":
     #     for ii in range(5):
     #         data_fill[cnt+ii] = data_de0[i] + diff * ii
 
+    mask = data[:, 4] != 0
+    data_de0 = data[mask]
+    print(data_de0.shape)
+
+    # 数据填充
     def interpolate(inp, multiplier=5):
         expanded_shape = [multiplier * (inp.shape[0] - 1) + 1, *inp.shape[1:]]
         out = np.empty(expanded_shape)
