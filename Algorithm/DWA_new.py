@@ -315,25 +315,25 @@ def main():
         # traj = np.vstack((traj, state))  # store state history
 
         # 朝着预测轨迹的某一点航行
-        target_point = best_traj[len(best_traj) // 3]
-        real_point = state
-        target_angle, dist = pure_pursuit(real_point, target_point)
-        if target_angle < 0:
-            target_angle += 2 * pi
-        if dist <= 2:
-            average = 600
-        elif dist <= 5:
-            average = 800
-        else:
-            average = 1000
-        diff = pid_yaw.compute(state[2], target_angle)
+        # target_point = best_traj[len(best_traj) // 3]
+        # real_point = state
+        # target_angle, dist = pure_pursuit(real_point, target_point)
+        # if target_angle < 0:
+        #     target_angle += 2 * pi
+        # if dist <= 2:
+        #     average = 600
+        # elif dist <= 5:
+        #     average = 800
+        # else:
+        #     average = 1000
+        # diff = pid_yaw.compute(state[2], target_angle)
 
         average_forward = 0  # 1000 * (0.2825 * u[0]**2 + 0.3648 * u[0])
         diff_forward = 0  # 2400 * (1.8704 * u[1]**2 + 0.5533 * u[1])
-        # average = pid_spd.compute(state[SPD], u[0])
-        # diff = pid_yawspd.compute(state[YAWSPD], u[1])
-        #
-        # average = 0 if abs(average) < 5 else average
+        average = pid_spd.compute(state[SPD], u[0])
+        diff = pid_yawspd.compute(state[YAWSPD], u[1])
+
+        average = 0 if abs(average) < 5 else average
         diff = 0 if abs(diff) < 5 else diff
         left, right = average + average_forward + (diff + diff_forward) / 2, average + average_forward - (
             diff + diff_forward) / 2

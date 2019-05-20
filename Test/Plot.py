@@ -72,25 +72,41 @@ if __name__ =="__main__":
     # data = np.loadtxt('log-05-05-16-44.txt', skiprows=1, usecols=(1, 2, 5, 8, 9, 10, 13, 16), delimiter=',')  # 380 - 1050 跟踪部分
     # data = np.loadtxt('log-05-05-16-59.txt', skiprows=1, usecols=(1, 2, 5, 8, 9, 10, 13, 16), delimiter=',')  # 不好
     # data = np.loadtxt('%s\\log-05-12-15-51.txt' % root, skiprows=1, usecols=(1, 2, 5, 8, 9, 10, 13, 16), delimiter=',')  # 0.5s的间隔
-    data = np.loadtxt('%s\\log-05-05-17-21.txt' % root, skiprows=1, usecols=(1, 2, 5, 8, 9, 10, 13, 16), delimiter=',') # 0.5s的间隔
-
+    # data = np.loadtxt('%s\\log-05-05-17-21.txt' % root, skiprows=1, usecols=(1, 2, 5, 8, 9, 10, 13, 16), delimiter=',') # 0.5s的间隔
+    data = np.loadtxt('%s\\log-05-12-16-47.txt' % root, skiprows=1, usecols=(1, 2, 5, 8, 9, 10, 13, 16), delimiter=',')
     # 除去零值
-    data_de0 = [data[i, :] for i in range(len(data)) if data[i, 4] != 0]
+    data_de0 = [data[i, :] for i in range(len(data)) if (data[i, 0] != 0) & (data[i, 1] != 0)]
     data_de0 = np.array(data_de0)
     print(np.shape(data_de0))
 
     # 数据填充
-    data_fill = np.zeros((5*(len(data_de0)-1), 8))
-    for i in range(len(data_de0)-1):
-        cnt = 5 * i
-        diff = (data_de0[i+1] - data_de0[i]) / 5
-        for ii in range(5):
-            data_fill[cnt+ii] = data_de0[i] + diff * ii
+    # data_fill = np.zeros((5*(len(data_de0)-1), 8))
+    # for i in range(len(data_de0)-1):
+    #     cnt = 5 * i
+    #     diff = (data_de0[i+1] - data_de0[i]) / 5
+    #     for ii in range(5):
+    #         data_fill[cnt+ii] = data_de0[i] + diff * ii
 
-    np.savetxt("fakedata4.txt", data_fill[:, 4:8])
+    def interpolate(inp, multiplier=5):
+        expanded_shape = [multiplier * (inp.shape[0] - 1) + 1, *inp.shape[1:]]
+        out = np.empty(expanded_shape)
+        diff = (inp[1:] - inp[:-1]) / multiplier
+        for i in range(multiplier):
+            out[i:-1:multiplier] = i * diff + inp[:-1]
+        out[-1] = inp[-1]
+        return out
+    data_fill = interpolate(data_de0)
+
+    np.savetxt("fakedata11.txt", data_fill[:, 0:4])
     print(np.shape(data_fill))
-    plt.scatter(data_fill[:, 4], data_fill[:, 5], color="red")
+    plt.scatter(data_fill[:, 0], data_fill[:, 1], color="red")
     plt.show()
+
+    # np.savetxt("fakedata6.txt", data_de0[:, 4:8])
+    # print(np.shape(data_de0))
+    # plt.scatter(data_de0[:, 4], data_de0[:, 5], color="red")
+    # plt.show()
+
     # np.savetxt("fakedata1.txt", data[:, 4:8])
     # np.savetxt("fakedata2.txt", data[:, 0:4])
     # np.savetxt("fakedata3.txt", data_de0[:, 4:8])
